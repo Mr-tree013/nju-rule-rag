@@ -12,6 +12,7 @@ data/processed/
 data/chunks/
 data/index/
 logs/
+CLAUDE.md
 .vscode/
 .idea/
 *.swp
