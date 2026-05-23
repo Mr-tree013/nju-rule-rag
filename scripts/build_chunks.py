@@ -88,6 +88,50 @@ def split_by_markdown_sections(content):
     return chunks
 
 
+def split_handbook(content):
+    """
+    Split student handbook: first by ### sub-document, then by articles within each.
+    Returns list of (section_context, heading, body) for richer labeling.
+    """
+    # Split by ### N. sub-document headings
+    sub_docs = re.split(r"\n(?=### \d+\.)", content)
+    all_sections = []
+
+    for sub_doc in sub_docs:
+        sub_doc = sub_doc.strip()
+        if not sub_doc:
+            continue
+
+        # Extract sub-document title from first line
+        lines = sub_doc.split("\n", 1)
+        doc_title = lines[0].lstrip("#").strip() if lines else ""
+        doc_body = lines[1] if len(lines) > 1 else ""
+
+        if not doc_body.strip():
+            continue
+
+        doc_body = clean_text(doc_body)
+
+        # Within this sub-document, split by article headings
+        if should_use_article_split(doc_body):
+            sub_chunks = split_by_article(doc_body)
+            for heading, body in sub_chunks:
+                # Prefix heading with document title for context
+                full_heading = f"{doc_title} — {heading}" if heading != "前言" else f"{doc_title} — 前言"
+                all_sections.append((full_heading, body))
+        else:
+            all_sections.append((doc_title, doc_body))
+
+    return all_sections
+
+
+def is_handbook(content):
+    """Detect if content is the student handbook (collection of sub-documents)."""
+    # Handbook has ## for major sections and many ### for sub-documents
+    sub_doc_count = len(re.findall(r"\n### \d+\.", content))
+    return sub_doc_count >= 5
+
+
 def should_use_article_split(content):
     """Check if the document uses article-style headings (第X条)."""
     return bool(re.search(r"第[一二三四五六七八九十百\d]+条", content))
@@ -126,7 +170,9 @@ def main():
 
         content = clean_text(content)
 
-        if should_use_article_split(content):
+        if is_handbook(content):
+            chunk_parts = split_handbook(content)
+        elif should_use_article_split(content):
             chunk_parts = split_by_article(content)
         else:
             chunk_parts = split_by_markdown_sections(content)
