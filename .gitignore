@@ -9,7 +9,8 @@ build/
 .pytest_cache/
 data/raw/
 data/processed/
-data/chunks/
+data/chunks/*
+!data/chunks/chunks.jsonl
 data/index/
 logs/
 CLAUDE.md
