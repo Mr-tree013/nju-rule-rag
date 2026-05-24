@@ -315,9 +315,10 @@ class HybridRetriever:
     混合检索器，融合 BM25 关键词匹配与 Chroma 语义匹配。
 
     最终公式：
-      final_score = bm25_norm * 0.5 + vector_norm * 0.4 + priority_score * 0.1
+      final_score = bm25_norm * 0.45 + vector_norm * 0.35 + priority_score * 0.2
 
     其中 priority_score = (6 - priority) / 5，使 priority=1 → 1.0，priority=5 → 0.2。
+    权威来源（priority 小）在最终排序中获得更多加成。
 
     当一路不可用时，权重自动调整，保证仍能返回结果。
     """
@@ -325,14 +326,26 @@ class HybridRetriever:
     def __init__(self):
         self._bm25 = BM25Retriever()
         self._vector = VectorRetriever()
+        self._manifest = self._read_manifest()
+
+    def _read_manifest(self):
+        try:
+            with open(MANIFEST_PATH, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
 
     # ---- 状态 ----
 
     def status(self):
+        m = self._manifest
         return {
             "bm25_loaded": self._bm25.is_loaded,
             "bm25_chunks": self._bm25.chunk_count,
             "vector_loaded": self._vector.is_loaded,
+            "manifest_built_at": m.get("built_at", ""),
+            "manifest_chunk_count": m.get("chunk_count", 0),
+            "manifest_status": m.get("status", "missing"),
         }
 
     # ---- 检索 ----
@@ -367,11 +380,11 @@ class HybridRetriever:
 
         # 融合权重：缺一路时另一路权重提高
         if use_bm25 and use_vector:
-            w_bm25, w_vec = 0.5, 0.4
+            w_bm25, w_vec, w_pri = 0.45, 0.35, 0.20
         elif use_bm25:
-            w_bm25, w_vec = 0.9, 0.0
+            w_bm25, w_vec, w_pri = 0.80, 0.00, 0.20
         else:
-            w_bm25, w_vec = 0.0, 0.9
+            w_bm25, w_vec, w_pri = 0.00, 0.80, 0.20
 
         # 按 chunk_id 合并去重，同时保留各路分数用于 score_detail
         merged = {}  # chunk_id → { "bm25_score", "vector_score", "priority", "chunk" }
@@ -405,7 +418,7 @@ class HybridRetriever:
             final = (
                 data["bm25_score"] * w_bm25
                 + data["vector_score"] * w_vec
-                + priority_score * 0.1
+                + priority_score * w_pri
             )
             scored.append((cid, final, data))
 
@@ -428,10 +441,11 @@ class HybridRetriever:
                         "bm25_raw": round(data["bm25_score"], 4),
                         "vector_raw": round(data["vector_score"], 4),
                         "priority_bonus": round(
-                            (6 - data["priority"]) / 5.0 * 0.1, 4
+                            (6 - data["priority"]) / 5.0 * w_pri, 4
                         ),
                         "bm25_weight": w_bm25,
                         "vector_weight": w_vec,
+                        "priority_weight": w_pri,
                     },
                 }
             )
