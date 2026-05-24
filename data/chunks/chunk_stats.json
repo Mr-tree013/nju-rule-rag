@@ -1,13 +1,14 @@
 {
-  "built_at": "2026-05-25 02:16:13",
-  "total_chunks": 426,
-  "avg_chars": 400,
-  "avg_cn_chars": 321,
+  "built_at": "2026-05-25 02:19:56",
+  "total_chunks": 435,
+  "avg_chars": 411,
+  "avg_cn_chars": 326,
   "min_cn_chars": 30,
   "max_cn_chars": 7360,
   "too_short_cn": 0,
   "too_long_cn": 25,
   "per_source": {
+    "nju-jw-031": 1,
     "nju-jw-016": 5,
     "nju-jw-014": 6,
     "nju-jw-020": 5,
@@ -24,7 +25,11 @@
     "nju-jw-001": 65,
     "nju-jw-009": 12,
     "nju-jw-003": 21,
+    "nju-jw-030": 2,
+    "nju-jw-028": 1,
+    "nju-jw-029": 1,
     "nju-jw-022": 2,
+    "nju-jw-027": 4,
     "nju-jw-010": 5,
     "nju-jw-004": 10,
     "nju-jw-002": 39,
@@ -36,12 +41,12 @@
     "nju-jw-023": 3
   },
   "per_priority": {
-    "2": 87,
+    "4": 17,
+    "2": 91,
     "1": 275,
     "3": 5,
-    "5": 47,
-    "4": 12
+    "5": 47
   },
-  "sources_matched": 26,
+  "sources_matched": 31,
   "sources_unmatched": []
 }

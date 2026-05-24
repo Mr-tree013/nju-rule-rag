@@ -1,0 +1,9 @@
+{
+  "source_id": "nju-jw-030",
+  "input_file": "/mnt/c/Users/Mr.tree/Desktop/下载/南京大学本科教务系统学分认定学生使用手册（新）.pdf",
+  "output_file": "/mnt/c/Users/Mr.tree/Desktop/nju-rule-rag/nju-rule-rag/data/processed/南京大学-教务系统学分认定学生使用手册.md",
+  "parser": "pymupdf",
+  "text_length": 3467,
+  "parsed_at": "2026-05-25 02:19:49",
+  "warning": null
+}

@@ -1,0 +1,9 @@
+{
+  "source_id": "nju-jw-029",
+  "input_file": "/mnt/c/Users/Mr.tree/Desktop/下载/南京大学本科教务系统补考办理学生使用手册.pdf",
+  "output_file": "/mnt/c/Users/Mr.tree/Desktop/nju-rule-rag/nju-rule-rag/data/processed/南京大学-教务系统补考办理学生使用手册.md",
+  "parser": "pymupdf",
+  "text_length": 444,
+  "parsed_at": "2026-05-25 02:19:49",
+  "warning": null
+}
