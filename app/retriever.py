@@ -29,6 +29,7 @@ from app.config import (
     CHUNKS_FILE,
     HYBRID_TOP_K,
     INDEX_DIR,
+    LOCAL_EMBEDDING_MODEL,
     VECTOR_TOP_K,
 )
 
@@ -209,7 +210,7 @@ class VectorRetriever:
     """
     Chroma 向量检索器。
 
-    默认使用 Chroma 内置的 ONNX embedding（all-MiniLM-L6-v2）。
+    使用 sentence-transformers 中文 embedding 模型（从 .env 配置）。
     如果 Chroma 目录不存在或加载失败，优雅降级，不中断服务。
     """
 
@@ -246,7 +247,19 @@ class VectorRetriever:
                 path=str(CHROMA_PATH),
                 settings=Settings(anonymized_telemetry=False),
             )
-            self._collection = client.get_collection(COLLECTION_NAME)
+            # Use the same embedding model that build_index.py used.
+            embedding_fn = None
+            try:
+                from chromadb.utils import embedding_functions
+                embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name=LOCAL_EMBEDDING_MODEL,
+                )
+            except ImportError:
+                pass
+
+            self._collection = client.get_collection(
+                COLLECTION_NAME, embedding_function=embedding_fn
+            )
             self._loaded = True
         except Exception as e:
             print(f"[VectorRetriever] 加载 Chroma 失败 ({e})，向量检索不可用。")

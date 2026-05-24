@@ -50,6 +50,11 @@ HYBRID_TOP_K = int(_get("HYBRID_TOP_K", "5"))
 MIN_RELIABLE_SCORE = float(_get("MIN_RELIABLE_SCORE", "0.2"))
 HIGH_RISK_MIN_SCORE = float(_get("HIGH_RISK_MIN_SCORE", "0.25"))
 
+# 本地 embedding 模型（sentence-transformers 加载）
+LOCAL_EMBEDDING_MODEL = _get(
+    "LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"
+)
+
 
 # ============================================================
 # 工具函数

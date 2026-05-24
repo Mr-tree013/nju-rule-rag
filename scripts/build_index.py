@@ -33,6 +33,11 @@ CHROMA_DIR = INDEX_DIR / "chroma"
 
 ENABLE_VECTOR = os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no")
 
+# 中文 embedding 模型（sentence-transformers）。
+LOCAL_EMBEDDING_MODEL = os.getenv(
+    "LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"
+)
+
 
 # ── helpers ────────────────────────────────────────────────────────
 
@@ -104,7 +109,7 @@ def build_chroma(chunks):
         print("  Cleaned old Chroma directory.")
 
     try:
-        print("Building Chroma vector index...")
+        print(f"Building Chroma vector index (model: {LOCAL_EMBEDDING_MODEL})...")
         client = chromadb.PersistentClient(
             path=str(CHROMA_DIR),
             settings=Settings(anonymized_telemetry=False),
@@ -117,13 +122,23 @@ def build_chroma(chunks):
         except Exception:
             pass
 
+        # Use sentence-transformers with Chinese model
+        try:
+            from chromadb.utils import embedding_functions
+            embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=LOCAL_EMBEDDING_MODEL,
+            )
+        except ImportError:
+            print("  sentence-transformers not installed, using default ONNX.")
+            embedding_fn = None
+
         collection = client.create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"},
+            embedding_function=embedding_fn,
         )
 
-        # Chroma default ONNX model is all-MiniLM-L6-v2
-        embedding_model = "all-MiniLM-L6-v2"
+        embedding_model = LOCAL_EMBEDDING_MODEL if embedding_fn else "all-MiniLM-L6-v2 (fallback)"
 
         batch_size = 50
         for i in range(0, len(chunks), batch_size):
