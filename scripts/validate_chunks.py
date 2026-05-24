@@ -29,6 +29,7 @@ CONTRACT_FIELDS = [
     "department",
     "scope",
     "priority",
+    "article",
     "content",
     "fetched_at",
 ]
@@ -42,13 +43,14 @@ MUST_HAVE_VALUE = {
     "scope",
     "priority",
     "content",
+    "article",
 }
 
-# Fields that may be empty strings (url for local files, fetched_at not yet wired).
+# Fields that may be empty strings.
 CAN_BE_EMPTY = {"url", "fetched_at"}
 
-# Recommended but not yet in the current data pipeline.
-RECOMMENDED_FIELDS = ["article", "section"]
+# Deprecated / legacy field — kept for backward compat.
+RECOMMENDED_FIELDS = ["section"]
 
 VALID_PRIORITIES = {1, 2, 3, 4, 5}
 
