@@ -9,8 +9,9 @@
 
 依赖：
 - data/chunks/chunks.jsonl           → chunk 原始数据
-- data/index/bm25_index.pkl          → BM25 索引（可选，缺失时从 chunks 临时构建）
+- data/index/bm25.pkl                → BM25 索引（可选，缺失时从 chunks 临时构建）
 - data/index/chroma/                 → 向量索引（可选，缺失时仅运行 BM25）
+- data/index/manifest.json           → 索引元信息（启动时读取）
 """
 
 import json
