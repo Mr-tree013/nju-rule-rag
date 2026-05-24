@@ -46,6 +46,8 @@ INDEX_DIR = _get("INDEX_DIR", "data/index")
 BM25_TOP_K = int(_get("BM25_TOP_K", "10"))
 VECTOR_TOP_K = int(_get("VECTOR_TOP_K", "10"))
 HYBRID_TOP_K = int(_get("HYBRID_TOP_K", "5"))
+# 检索分数阈值：低于此值的 chunk 视为不可靠
+MIN_RELIABLE_SCORE = float(_get("MIN_RELIABLE_SCORE", "0.2"))
 HIGH_RISK_MIN_SCORE = float(_get("HIGH_RISK_MIN_SCORE", "0.25"))
 
 

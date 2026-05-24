@@ -18,14 +18,9 @@ from app.answer_policy import (
     need_human_confirm,
     no_evidence_response,
 )
-from app.config import HIGH_RISK_MIN_SCORE
+from app.config import HIGH_RISK_MIN_SCORE, MIN_RELIABLE_SCORE
 from app.llm_client import LLMError, chat
 from app.retriever import HybridRetriever
-
-# ---------- 常量 ----------
-
-# 当所有检索 chunk 分数低于此值时，视为无可靠依据
-MIN_RELIABLE_SCORE = 0.10
 
 # 回答最大长度（适配 QQ 群展示）
 MAX_ANSWER_LENGTH = 600
@@ -73,7 +68,7 @@ def build_context(chunks):
     parts = []
     for i, c in enumerate(chunks):
         parts.append(
-            f"[来源: {c['title']} | 条款: {c.get('section', '无')}]\n"
+            f"[来源: {c['title']} | 条款: {c.get('article', c.get('section', '无'))}]\n"
             f"{c['content']}"
         )
     return "\n\n---\n\n".join(parts)

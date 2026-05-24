@@ -9,6 +9,7 @@ Reads data/chunks/chunks.jsonl, builds search indices, and generates:
 """
 
 import json
+import os
 import pickle
 import shutil
 import sys
@@ -29,6 +30,8 @@ BM25_FILE = INDEX_DIR / "bm25.pkl"
 LOOKUP_FILE = INDEX_DIR / "chunk_lookup.json"
 MANIFEST_FILE = INDEX_DIR / "manifest.json"
 CHROMA_DIR = INDEX_DIR / "chroma"
+
+ENABLE_VECTOR = os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no")
 
 
 # ── helpers ────────────────────────────────────────────────────────
@@ -84,6 +87,10 @@ def build_chroma(chunks):
     embedding_model = None
     status = "ok"
 
+    if not ENABLE_VECTOR:
+        print("  ENABLE_VECTOR=false, skipping vector index.")
+        return None, "skipped"
+
     try:
         import chromadb
         from chromadb.config import Settings
@@ -128,8 +135,8 @@ def build_chroma(chunks):
                     {
                         "source_id": c["source_id"],
                         "title": c["title"],
+                        "url": c.get("url", ""),
                         "priority": c["priority"],
-                        "section": c.get("section", ""),
                     }
                     for c in batch
                 ],

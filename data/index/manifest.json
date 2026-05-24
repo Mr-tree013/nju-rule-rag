@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-05-24 23:48:51",
+  "built_at": "2026-05-24 23:58:46",
   "chunks_file": "data/chunks/chunks.jsonl",
   "chunk_count": 421,
   "bm25_index": "data/index/bm25.pkl",

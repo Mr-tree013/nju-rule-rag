@@ -8,6 +8,7 @@ dist/
 build/
 .pytest_cache/
 data/raw/
+data/index/chroma/*/
 logs/
 CLAUDE.md
 .vscode/
