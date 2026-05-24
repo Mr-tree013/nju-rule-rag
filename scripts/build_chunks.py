@@ -9,6 +9,7 @@ import csv
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -192,6 +193,7 @@ def main():
                 "priority": int(source_row.get("priority", 5)),
                 "section": heading,
                 "content": body,
+                "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
             all_chunks.append(chunk)
 
