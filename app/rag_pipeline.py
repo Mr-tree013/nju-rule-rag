@@ -169,7 +169,7 @@ def answer_question(question):
         return {
             "question": question,
             "answer": "系统暂时不可用，请稍后再试。",
-            "risk_level": "unknown",
+            "risk_level": risk_level,
             "need_human_confirm": True,
             "sources": [],
             "debug": {"retrieval_count": 0, "latency": round(t_end - t_start, 2)},
@@ -182,6 +182,9 @@ def answer_question(question):
     if not reliable_chunks:
         t_end = time.time()
         result = no_evidence_response(question)
+        # Preserve the actual risk level instead of always "low".
+        result["risk_level"] = risk_level
+        result["need_human_confirm"] = need_human_confirm(question, risk_level)
         result["debug"] = {"retrieval_count": retrieval_count, "latency": round(t_end - t_start, 2)}
         return result
 
@@ -213,9 +216,9 @@ def answer_question(question):
         return {
             "question": question,
             "answer": "系统暂时不可用，请稍后再试。",
-            "risk_level": "unknown",
-            "need_human_confirm": True,
-            "sources": [],
+            "risk_level": risk_level,
+            "need_human_confirm": need_human_confirm(question, risk_level),
+            "sources": extract_sources(reliable_chunks[:5]),
             "debug": {"retrieval_count": retrieval_count, "latency": round(t_end - t_start, 2)},
         }
 
