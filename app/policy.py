@@ -37,16 +37,27 @@ class RiskClassifier:
     high_keywords: ClassVar[tuple[str, ...]] = (
         "退学", "开除", "处分", "作弊", "代考", "替考",
         "劝退", "留级", "记过", "留校察看", "通报批评",
-        "学位", "毕业资格", "毕业不了", "不能毕业", "无法毕业",
+        "毕业资格", "毕业不了", "不能毕业", "无法毕业",
         "毕不了业", "还能毕业", "还能正常毕业",
+        "没毕业", "能不能毕业", "毕业论文没过",
         "拿不到学位", "不给学位", "撤销学位",
+        "学位被取消", "没有学位", "取消学位",
         "学籍取消", "严重警告", "取消考试资格",
         "会不会被开除", "会不会被退学", "被开除", "被退学",
+        "学术不端", "论文抄袭", "被处分",
+    )
+
+    # Phrases containing "学位" that indicate a purely informational query.
+    # When the ONLY high-keyword hit is a substring of "学位" and the
+    # question matches one of these, we suppress the high classification.
+    _degree_info_phrases: ClassVar[tuple[str, ...]] = (
+        "学位证", "学位认证", "学位申请", "学位查询",
     )
 
     medium_keywords: ClassVar[tuple[str, ...]] = (
         "转专业", "辅修", "课程认定", "交换", "缓考",
         "补考", "重修", "学业预警", "绩点", "成绩", "选课",
+        "挂科", "学位", "休学", "复学", "免修", "免听", "退课",
     )
 
     process_keywords: ClassVar[tuple[str, ...]] = (
@@ -59,6 +70,9 @@ class RiskClassifier:
         Return a ``ClassificationResult`` for *question*.
 
         Matching order: high > medium > low.
+
+        A bare "学位" match is downgraded to medium when the question is
+        purely informational (e.g. "学位证和毕业证有什么区别").
         """
         if not question or not question.strip():
             return ClassificationResult(RiskLevel.LOW)
@@ -66,8 +80,12 @@ class RiskClassifier:
         text = question
         for kw in self.high_keywords:
             if kw in text:
+                level = RiskLevel.HIGH
+                # Downgrade: bare "学位" informational queries
+                if self._is_degree_info_only(text, kw):
+                    level = RiskLevel.MEDIUM
                 return ClassificationResult(
-                    level=RiskLevel.HIGH,
+                    level=level,
                     is_process=self._match_any(text, self.process_keywords),
                 )
 
@@ -103,6 +121,18 @@ class RiskClassifier:
             if kw in text:
                 return True
         return False
+
+    @classmethod
+    def _is_degree_info_only(cls, text: str, matched_kw: str) -> bool:
+        """True when *matched_kw* is a bare 学位 hit on an informational query.
+
+        E.g. "学位证和毕业证有什么区别" should not be high risk just because
+        it happens to contain the substring "学位".
+        """
+        # Only apply to the bare "学位" keyword (2 chars), not longer phrases.
+        if len(matched_kw) > 2 or matched_kw != "学位":
+            return False
+        return cls._match_any(text, cls._degree_info_phrases)
 
 
 # ── Response templates ───────────────────────────────────────────────

@@ -5,12 +5,14 @@ Provides GET /health and POST /ask endpoints.
 """
 
 import logging
+import sys
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.config import APP_TITLE
+from app.config import APP_TITLE, create_settings
 from app.errors import EmptyQuestionError
 from app.pipeline import answer_question
 
@@ -19,6 +21,16 @@ logger = logging.getLogger("app")
 
 app = FastAPI(title=APP_TITLE)
 
+# ── CORS (allows browser-based frontends) ────────────────────────────
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class AskRequest(BaseModel):
     question: str
@@ -26,7 +38,34 @@ class AskRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """Health check.  Returns basic status; retriever stats only if cached."""
+    s = create_settings()
+    warnings = s.validate()
+
+    resp: dict = {
+        "status": "ok",
+        "version": "0.2.0",
+        "chunks_file": s.chunks_file,
+        "vector_enabled": s.enable_vector,
+    }
+
+    # Only include retriever status if the singleton is already loaded.
+    try:
+        from app.pipeline import _pipeline
+        if _pipeline is not None:
+            status = _pipeline._retriever.status()
+            resp["retriever"] = {
+                "bm25_loaded": status.get("bm25_loaded", False),
+                "bm25_chunks": status.get("bm25_chunks", 0),
+                "vector_loaded": status.get("vector_loaded", False),
+            }
+    except Exception:
+        pass
+
+    if warnings:
+        resp["config_warnings"] = warnings
+
+    return resp
 
 
 @app.post("/ask")

@@ -146,6 +146,7 @@ class RAGPipeline:
             answer_text += "\n\n" + self._templates.high_risk_notice(question)
 
         sources = self._extract_sources(chunks[:5])
+        audit = self._audit_sources(chunks[:5])
         latency = round(time.time() - t_start, 2)
 
         return {
@@ -156,7 +157,11 @@ class RAGPipeline:
                 question, classification.level
             ),
             "sources": sources,
-            "debug": {"retrieval_count": retrieval_count, "latency": latency},
+            "debug": {
+                "retrieval_count": retrieval_count,
+                "latency": latency,
+                "audit_warnings": audit,
+            },
         }
 
     # ── Helpers ─────────────────────────────────────────────────
@@ -172,6 +177,36 @@ class RAGPipeline:
             }
             for c in chunks
         ]
+
+    def _audit_sources(self, chunks: list[dict]) -> list[str]:
+        """Check reliability of retrieved chunks.  Returns warnings.
+
+        Implements rules from docs/risk_policy.md:
+        - priority=5 (student handbook / unofficial) as sole source
+        - chunks older than 3 years
+        """
+        warnings: list[str] = []
+        if not chunks:
+            return warnings
+
+        priorities = {c.get("priority", 5) for c in chunks}
+        if priorities == {5}:
+            warnings.append("唯一来源为学生手册等非正式文件(priority=5)，建议核实")
+
+        now = time.time()
+        three_years = 3 * 365 * 24 * 3600
+        for c in chunks:
+            fetched = c.get("fetched_at", "")
+            if fetched:
+                try:
+                    t = time.mktime(time.strptime(fetched, "%Y-%m-%d %H:%M:%S"))
+                    if now - t > three_years:
+                        warnings.append(
+                            f"chunk {c['chunk_id']} 超过3年({fetched[:10]})，信息可能过时"
+                        )
+                except (ValueError, OverflowError):
+                    pass
+        return warnings
 
     def _empty_question_response(self) -> dict[str, Any]:
         return {
@@ -199,7 +234,11 @@ class RAGPipeline:
             result["need_human_confirm"] = self._classifier.needs_human_confirm(
                 question, classification.level
             )
-        result["debug"] = {"retrieval_count": retrieval_count, "latency": latency}
+        result["debug"] = {
+            "retrieval_count": retrieval_count,
+            "latency": latency,
+            "audit_warnings": [],
+        }
         return result
 
     def _fallback_response(
@@ -216,7 +255,11 @@ class RAGPipeline:
             "risk_level": classification.level,
             "need_human_confirm": True,
             "sources": [],
-            "debug": {"retrieval_count": retrieval_count, "latency": latency},
+            "debug": {
+                "retrieval_count": retrieval_count,
+                "latency": latency,
+                "audit_warnings": [],
+            },
         }
 
 
