@@ -101,8 +101,8 @@ class Settings:
     # ── Pipeline ─────────────────────────────────────────────────
 
     max_answer_length: int = 600
-    max_context_chunks: int = 8
-    max_chunks_per_source: int = 2
+    max_context_chunks: int = 12
+    max_chunks_per_source: int = 3
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
     # ── QQ Bot ───────────────────────────────────────────────────
