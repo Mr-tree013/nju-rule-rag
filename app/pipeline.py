@@ -71,8 +71,8 @@ class RAGPipeline:
         if not reliable:
             return self._no_evidence_response(question, classification, t_start, retrieval_count)
 
-        # 6. Build prompt & call LLM (cap at 5 chunks to avoid timeouts)
-        top_chunks = reliable[:5]
+        # 6. Build prompt & call LLM — dedup by source, cap total
+        top_chunks = self._dedup_chunks(reliable)
         messages = self._build_prompt(question, top_chunks, classification.level)
         try:
             answer_text = self._generate(messages)
@@ -95,6 +95,26 @@ class RAGPipeline:
         if level == RiskLevel.HIGH:
             min_score = max(min_score, self._settings.high_risk_min_score)
         return [c for c in chunks if c["score"] >= min_score]
+
+    def _dedup_chunks(self, chunks: list[dict]) -> list[dict]:
+        """Keep top chunks, but limit per source to avoid single-doc bias.
+
+        At most *max_chunks_per_source* from each source_id, then at most
+        *max_context_chunks* total.  Default: 2 per source, 8 total.
+        """
+        limit = self._settings.max_context_chunks
+        per_source = self._settings.max_chunks_per_source
+        counts: dict[str, int] = {}
+        result: list[dict] = []
+        for c in chunks:
+            sid = c.get("source_id", "")
+            if counts.get(sid, 0) >= per_source:
+                continue
+            counts[sid] = counts.get(sid, 0) + 1
+            result.append(c)
+            if len(result) >= limit:
+                break
+        return result
 
     def _build_prompt(
         self, question: str, chunks: list[dict], level: RiskLevel
