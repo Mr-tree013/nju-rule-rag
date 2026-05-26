@@ -2,7 +2,7 @@
 
 南京大学本科校规与教务流程 RAG（检索增强生成）问答系统。
 
-基于 46 份校规、办事指南和校园生活文档，支持自然语言提问、来源引用、风险分级与拒答机制。
+基于 61 份校规、办事指南和校园生活文档，支持自然语言提问、来源引用、风险分级与拒答机制。
 
 **当前状态**：v0.2.0，端到端可运行，107 个测试通过，支持 Docker 部署。
 
@@ -56,7 +56,7 @@ nju-rule-rag/
 │   └── qq_bot.py                 # QQ Bot 适配层
 │
 ├── scripts/                      # 离线数据处理
-│   ├── build_chunks.py           # MD → 496 chunks（条款切分）
+│   ├── build_chunks.py           # MD → 2075 chunks（条款切分）
 │   ├── build_index.py            # chunks → BM25 + Chroma 索引
 │   ├── validate_sources.py       # 校验 sources.csv
 │   ├── validate_chunks.py        # 校验 chunks.jsonl
@@ -75,9 +75,9 @@ nju-rule-rag/
 │   └── test_main.py              # 5 个  — FastAPI 端点
 │
 ├── data/
-│   ├── sources.csv               # 46 条资料来源清单
-│   ├── processed/                # 46 个 .md 文档 (31 校规 + 15 生活)
-│   ├── chunks/                   # chunks.jsonl（496条）+ stats
+│   ├── sources.csv               # 61 条资料来源清单
+│   ├── processed/                # 61 个 .md 文档 (本科生院 45 + 南哪助手 15 + 南京大学 1)
+│   ├── chunks/                   # chunks.jsonl（2075条）+ stats
 │   ├── index/                    # BM25 + Chroma + manifest
 │   ├── eval/                     # 70 题评测集 + 结果
 │   └── raw/                      # 原始抓取文件
@@ -132,9 +132,9 @@ nju-rule-rag/
 
 | 内容 | 数量 |
 |------|------|
-| 资料来源 | 46 条（校规 31 + 生活指南 15）|
-| Markdown 文档 | 46 个 |
-| 可检索片段 | 496 chunks |
+| 资料来源 | 61 条（本科生院 45 + 南哪助手 15 + 南京大学 1）|
+| Markdown 文档 | 61 个 |
+| 可检索片段 | 2075 chunks |
 | 评测问题 | 70 题 / 14 主题 |
 
 ---
@@ -192,7 +192,7 @@ _format_response()
 │  HTML/PDF/DOC/DOCX → MD                            │
 │       │                                            │
 │       ▼                                            │
-│  data/processed/*.md  ←── 46 个清洗后文档          │
+│  data/processed/*.md  ←── 61 个清洗后文档          │
 │                                                    │
 └───────────────────┬────────────────────────────────┘
                     │
@@ -202,7 +202,7 @@ _format_response()
 │  按条款切分 → 长段拆分 → 短段合并 → 噪声过滤       │
 │       │                                            │
 │       ▼                                            │
-│  chunks.jsonl (496 chunks) + chunk_stats.json       │
+│  chunks.jsonl (2075 chunks) + chunk_stats.json       │
 │       │                                            │
 │       ▼                                            │
 │  build_index.py                                    │
