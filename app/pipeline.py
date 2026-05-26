@@ -71,15 +71,16 @@ class RAGPipeline:
         if not reliable:
             return self._no_evidence_response(question, classification, t_start, retrieval_count)
 
-        # 6. Build prompt & call LLM
-        messages = self._build_prompt(question, reliable, classification.level)
+        # 6. Build prompt & call LLM (cap at 5 chunks to avoid timeouts)
+        top_chunks = reliable[:5]
+        messages = self._build_prompt(question, top_chunks, classification.level)
         try:
             answer_text = self._generate(messages)
         except LLMError:
             return self._fallback_response(question, classification, t_start, retrieval_count)
 
         # 7. Format final response
-        return self._format_response(question, answer_text, classification, reliable, t_start, retrieval_count)
+        return self._format_response(question, answer_text, classification, top_chunks, t_start, retrieval_count)
 
     # ── Step methods (override in subclasses) ───────────────────
 

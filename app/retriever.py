@@ -155,6 +155,7 @@ class BM25Retriever:
                 results.append(
                     {
                         "chunk_id": c["chunk_id"],
+                        "source_id": c.get("source_id", ""),
                         "title": c["title"],
                         "content": c["content"],
                         "url": c.get("url", ""),
@@ -283,6 +284,7 @@ class VectorRetriever:
                 results.append(
                     {
                         "chunk_id": cid,
+                        "source_id": chunk.get("source_id", ""),
                         "title": chunk["title"],
                         "content": chunk["content"],
                         "url": chunk.get("url", ""),
@@ -312,6 +314,13 @@ class HybridRetriever:
     If one sub-retriever is unavailable, weights are adjusted automatically.
     """
 
+    # Sources whose chunks tend to match many queries via common question words
+    # (Q&A format with lots of 怎么/什么/申请/流程).  Applied as a multiplier on
+    # the final hybrid score to reduce false-top-1 hits.
+    _QA_SOURCE_PENALTY: float = 0.65
+
+    _source_boost: dict[str, float] = {}
+
     def __init__(
         self,
         bm25: BM25Retriever,
@@ -319,12 +328,15 @@ class HybridRetriever:
         manifest_path: Path,
         weights: RetrievalWeights | None = None,
         top_k: int = 5,
+        source_boost: dict[str, float] | None = None,
     ):
         self._bm25 = bm25
         self._vector = vector
         self._weights = weights or RetrievalWeights()
         self._top_k = top_k
         self._manifest = self._read_manifest(manifest_path)
+        # Per-source score multipliers: key=source_id prefix or full id, value=multiplier
+        self._source_boost = source_boost or {}
 
     @staticmethod
     def _read_manifest(path: Path) -> dict:
@@ -333,6 +345,21 @@ class HybridRetriever:
                 return json.load(f)
         except Exception:
             return {}
+
+    @classmethod
+    def _resolve_boost(cls, source_id: str) -> float:
+        """Return the score multiplier for *source_id*.
+
+        Q&A-style daily-life docs (nju-life-*) get a slight penalty because
+        their common question words (怎么/什么/申请) cause BM25 over-matching.
+        Official 本科生院 docs (nju-jw-*) get a slight boost.
+        """
+        # Explicit per-source overrides
+        if source_id in cls._source_boost:
+            return cls._source_boost[source_id]
+        if source_id.startswith("nju-life-"):
+            return cls._QA_SOURCE_PENALTY
+        return 1.0
 
     # ── Status ───────────────────────────────────────────────────
 
@@ -403,6 +430,11 @@ class HybridRetriever:
                 + data["vector_score"] * w.vector
                 + priority_bonus * w.priority
             )
+            # Apply per-source score boost/penalty
+            src_id = data["chunk"].get("source_id", "")
+            boost = self._resolve_boost(src_id)
+            if boost != 1.0:
+                final *= boost
             scored.append((cid, final, data))
 
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -414,6 +446,7 @@ class HybridRetriever:
             results.append(
                 {
                     "chunk_id": cid,
+                    "source_id": chunk.get("source_id", ""),
                     "title": chunk["title"],
                     "content": chunk["content"],
                     "url": chunk.get("url", ""),
