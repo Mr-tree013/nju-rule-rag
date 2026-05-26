@@ -2,9 +2,9 @@
 
 南京大学本科校规与教务流程 RAG（检索增强生成）问答系统。
 
-基于 31 份公开校规和办事指南，支持自然语言提问、来源引用、风险分级与拒答机制。
+基于 46 份校规、办事指南和校园生活文档，支持自然语言提问、来源引用、风险分级与拒答机制。
 
-**当前状态**：Day 1-6 全部完成，端到端可运行，Demo 10 问 10/10 通过。
+**当前状态**：v0.2.0，端到端可运行，107 个测试通过，支持 Docker 部署。
 
 ---
 
@@ -31,6 +31,13 @@ curl -X POST http://127.0.0.1:8000/ask \
   -d '{"question":"缓考怎么申请？"}'
 ```
 
+Docker 部署：
+
+```bash
+cp .env.example .env   # 编辑填入 API Key
+docker compose up -d
+```
+
 ---
 
 ## 项目结构
@@ -38,30 +45,41 @@ curl -X POST http://127.0.0.1:8000/ask \
 ```
 nju-rule-rag/
 ├── app/                          # 在线问答服务
-│   ├── main.py                   # FastAPI 入口
-│   ├── config.py                 # 配置读取（.env）
-│   ├── answer_policy.py          # 风险分类 + 拒答
-│   ├── retriever.py              # BM25 + Chroma 混合检索
-│   ├── llm_client.py             # LLM API 封装（重试/脱敏）
-│   ├── rag_pipeline.py           # RAG 全流程编排
+│   ├── main.py                   # FastAPI 入口 (CORS, /health, /ask)
+│   ├── config.py                 # Settings 数据类 (env → 冻结配置)
+│   ├── errors.py                 # 异常层次 (RAGError 基类)
+│   ├── deps.py                   # 依赖注入容器
+│   ├── policy.py                 # 风险分类器 + 回答模板
+│   ├── retriever.py              # BM25 + Chroma 混合检索 (Retriever 协议)
+│   ├── llm_client.py             # LLM API 封装 (重试/脱敏)
+│   ├── pipeline.py               # RAGPipeline (可组合步骤方法)
 │   └── qq_bot.py                 # QQ Bot 适配层
 │
 ├── scripts/                      # 离线数据处理
-│   ├── build_chunks.py           # MD → 435 chunks（条款切分）
+│   ├── build_chunks.py           # MD → 496 chunks（条款切分）
 │   ├── build_index.py            # chunks → BM25 + Chroma 索引
 │   ├── validate_sources.py       # 校验 sources.csv
 │   ├── validate_chunks.py        # 校验 chunks.jsonl
 │   ├── crawl_sources.py          # 从 URL 抓取原始文件
 │   ├── parse_documents.py        # 批量解析（sources.csv 驱动）
-│   ├── parse_to_markdown.py      # ★ 通用格式转换器
+│   ├── parse_to_markdown.py      # 通用格式转换器
 │   └── eval_rag.py               # 批量评测 /ask
 │
+├── tests/                        # 107 个测试
+│   ├── test_answer_policy.py     # 37 个 — 风险分类 (旧 API + 新类)
+│   ├── test_config.py            # 13 个 — Settings 数据类
+│   ├── test_errors.py            # 5 个  — 异常层次
+│   ├── test_retriever.py         # 22 个 — BM25/Vector/Hybrid
+│   ├── test_llm_client.py        # 11 个 — LLMClient 初始化/脱敏
+│   ├── test_pipeline.py          # 16 个 — RAGPipeline 步骤
+│   └── test_main.py              # 5 个  — FastAPI 端点
+│
 ├── data/
-│   ├── sources.csv               # 31 条资料来源清单
-│   ├── processed/                # 31 个 .md 校规文档
-│   ├── chunks/                   # chunks.jsonl（435条）+ stats
+│   ├── sources.csv               # 46 条资料来源清单
+│   ├── processed/                # 46 个 .md 文档 (31 校规 + 15 生活)
+│   ├── chunks/                   # chunks.jsonl（496条）+ stats
 │   ├── index/                    # BM25 + Chroma + manifest
-│   ├── eval/                     # 55 题评测集 + 结果
+│   ├── eval/                     # 70 题评测集 + 结果
 │   └── raw/                      # 原始抓取文件
 │
 ├── docs/
@@ -69,14 +87,13 @@ nju-rule-rag/
 │   ├── risk_policy.md            # 风险分级策略
 │   ├── source_priority.md        # 资料来源优先级
 │   ├── dev_contract.md           # 开发契约（字段/接口/规则）
-│   ├── evaluation_report.md      # 55 题评测报告
+│   ├── evaluation_report.md      # 评测报告
 │   └── demo_script.md            # Demo 10 问脚本
 │
-├── tests/
-│   └── test_answer_policy.py     # 26 个单元测试
-│
+├── Dockerfile                    # Docker 镜像构建
+├── docker-compose.yml            # 一键部署
 ├── .env.example                  # 环境变量模板
-├── requirements.txt              # 13 个 Python 依赖
+├── requirements.txt              # Python 依赖
 └── README.md
 ```
 
@@ -88,13 +105,15 @@ nju-rule-rag/
 
 | 文件 | 功能 |
 |------|------|
-| `main.py` | `/health` `​/ask`，空问题 400，异常降级友好错误 |
-| `config.py` | 所有阈值/路径/模型名从 .env 读取 |
-| `answer_policy.py` | 20+ 高风险关键词，三级分类，拒答模板 |
-| `retriever.py` | 双路混合检索，权重 0.45/0.35/0.20，启动读 manifest |
-| `llm_client.py` | OpenAI 兼容接口，3 次重试，Key 脱敏 |
-| `rag_pipeline.py` | 分类→检索→过滤→LLM→来源→风控，全流程 |
-| `qq_bot.py` | `/问` 触发，【结论】【依据】【提醒】三栏，≤800 字 |
+| `main.py` | `/health`（含检索器状态、配置警告）、`/ask`，空问题 400，CORS 中间件 |
+| `config.py` | `Settings` 冻结数据类，`RetrievalWeights`（含降级方案），`create_settings()` 工厂 |
+| `errors.py` | `RAGError` 基类 → `ConfigError` / `LLMError` / `EmptyQuestionError` / `RetrievalError` |
+| `deps.py` | `create_pipeline()` / `create_retriever()` / `create_llm_client()` 依赖装配 |
+| `policy.py` | `RiskClassifier`（可子类扩展关键词），`ResponseTemplates`，`RiskLevel` 枚举 |
+| `retriever.py` | `Retriever` 协议 + `BM25Retriever` / `VectorRetriever` / `HybridRetriever`。可注入分词器和权重 |
+| `pipeline.py` | `RAGPipeline` 类，7 个可重写步骤方法，来源审计（年限/优先级），无全局单例 |
+| `llm_client.py` | `LLMClient` + `EmbeddingClient`，3 次重试，Key 脱敏 |
+| `qq_bot.py` | `/问` 触发，【结论】【依据】【提醒】三栏，从 Settings 读取配置 |
 
 ### scripts/ — 全部完成
 
@@ -106,17 +125,54 @@ nju-rule-rag/
 | `validate_chunks.py` | 字段/内容/唯一性，exit 1 on error |
 | `crawl_sources.py` | 礼貌延迟 1s，跳过 need_login，失败不中断 |
 | `parse_documents.py` | 批量解析：PDF(PyMuPDF) + DOC(LibreOffice) |
-| `parse_to_markdown.py` | ★ 通用转换器：HTML/PDF/DOC/DOCX/TXT → MD |
-| `eval_rag.py` | 55 题批量评测，输出 results.csv + summary.json |
+| `parse_to_markdown.py` | 通用转换器：HTML/PDF/DOC/DOCX/TXT → MD |
+| `eval_rag.py` | 70 题批量评测，输出 results.csv + summary.json |
 
 ### data/ — 全部就绪
 
 | 内容 | 数量 |
 |------|------|
-| 资料来源 | 31 条（priority 1: 13, 2: 9, 3: 2, 4: 5, 5: 2） |
-| Markdown 文档 | 31 个（24 校规 + 2 考试通知 + 5 操作手册/论文规范） |
-| 可检索片段 | 435 chunks |
-| 评测问题 | 55 题 / 10 主题 |
+| 资料来源 | 46 条（校规 31 + 生活指南 15）|
+| Markdown 文档 | 46 个 |
+| 可检索片段 | 496 chunks |
+| 评测问题 | 70 题 / 14 主题 |
+
+---
+
+## 架构
+
+```
+POST /ask {"question": "..."}
+        │
+        ▼
+RiskClassifier.classify()  →  ClassificationResult(level, is_process)
+        │
+        ▼
+HybridRetriever.search()
+  ├── BM25Retriever (jieba, bm25.pkl)
+  └── VectorRetriever (ChromaDB, text2vec-base-chinese)
+  Final = BM25_norm × 0.45 + vector_norm × 0.35 + priority_bonus × 0.20
+        │
+        ▼
+_filter_chunks() → below MIN_RELIABLE_SCORE → refusal
+        │         → high risk & below HIGH_RISK_MIN_SCORE → refusal
+        │
+        ▼
+_build_prompt() → LLMClient.chat() → length cap → high-risk notice
+        │                                            ↓
+        ▼                              _audit_sources() (age / priority warnings)
+_format_response()
+        │
+        ▼
+{ question, answer, risk_level, need_human_confirm, sources[], debug }
+```
+
+### 设计原则
+
+- **依赖注入**：`RAGPipeline` 通过构造函数接收 `Retriever`、`LLMClient`、`RiskClassifier`，无全局状态
+- **协议接口**：`Retriever` 是 `Protocol`，任何实现 `.search()` 的对象都可接入
+- **可扩展**：`RiskClassifier` 子类覆盖 `ClassVar` 元组即可添加关键词；`RAGPipeline` 子类覆盖步骤方法即可定制流程
+- **优雅降级**：向量索引不可用时自动切换为纯 BM25；LLM 调用失败返回友好错误
 
 ---
 
@@ -136,7 +192,7 @@ nju-rule-rag/
 │  HTML/PDF/DOC/DOCX → MD                            │
 │       │                                            │
 │       ▼                                            │
-│  data/processed/*.md  ←── 31 个清洗后文档          │
+│  data/processed/*.md  ←── 46 个清洗后文档          │
 │                                                    │
 └───────────────────┬────────────────────────────────┘
                     │
@@ -146,7 +202,7 @@ nju-rule-rag/
 │  按条款切分 → 长段拆分 → 短段合并 → 噪声过滤       │
 │       │                                            │
 │       ▼                                            │
-│  chunks.jsonl (435 chunks) + chunk_stats.json       │
+│  chunks.jsonl (496 chunks) + chunk_stats.json       │
 │       │                                            │
 │       ▼                                            │
 │  build_index.py                                    │
@@ -163,7 +219,7 @@ nju-rule-rag/
 │  POST /ask {"question": "..."}                     │
 │       │                                            │
 │       ▼                                            │
-│  classify_question()  →  risk: low/medium/high     │
+│  RiskClassifier.classify() → low / medium / high   │
 │       │                                            │
 │       ▼                                            │
 │  HybridRetriever: BM25(0.45)+Vector(0.35)+Pri(0.20)│
@@ -172,8 +228,8 @@ nju-rule-rag/
 │  分数过滤 → 低于阈值 → 拒答                         │
 │       │                                            │
 │       ▼                                            │
-│  LLM 生成 → 长度截断 → 高风险追加提醒 → 提取来源   │
-│       │                                            │
+│  LLM 生成 → 长度截断 → 高风险追加提醒               │
+│       │         → _audit_sources() (年限/优先级)    │
 │       ▼                                            │
 │  { question, answer, risk_level,                    │
 │    need_human_confirm, sources, debug }             │
@@ -211,35 +267,6 @@ python scripts/parse_to_markdown.py ~/下载/通知.pdf \
 python scripts/build_chunks.py && python scripts/build_index.py
 ```
 
-在代码中调用：
-
-```python
-from scripts.parse_to_markdown import convert_file
-from pathlib import Path
-
-md = convert_file(Path("通知.html"), title="考试安排", url="https://jw.nju.edu.cn/...")
-Path("data/processed/考试安排.md").write_text(md, encoding="utf-8")
-```
-
----
-
-## Demo 10 问
-
-| # | 问题 | risk | 行为 |
-|---|------|------|------|
-| 1 | 缓考在哪里申请？ | medium | 返回在线申请具体流程 |
-| 2 | 补考和重修有什么区别？ | medium | 对比条件/成绩/费用 |
-| 3 | 选课人数满了怎么办？ | medium | 提示补选阶段即选即中 |
-| 4 | 成绩有误应该怎么办？ | medium | 查分→更正流程 |
-| 5 | 学业预警是什么？ | medium | 定义 + 帮扶措施 |
-| 6 | 辅修需要注意什么？ | medium | 学籍不变/主修合格 |
-| 7 | 交换课程如何认定？ | medium | 备案→材料→审核→复审 |
-| 8 | 我作弊了会不会被开除？ | **high** | 描述处分规定，不下结论 |
-| 9 | 我这种情况还能不能毕业？ | **high** | 拒答 + 提醒咨询教务员 |
-| 10 | 校历在哪里看？ | low | 拒答（无依据） |
-
-**10/10 通过**，详见 `docs/demo_script.md`。
-
 ---
 
 ## 配置
@@ -272,14 +299,12 @@ LOCAL_EMBEDDING_MODEL=shibing624/text2vec-base-chinese
 # 确保服务运行
 uvicorn app.main:app --reload &
 
-# 跑 55 题评测
+# 跑 70 题评测
 python scripts/eval_rag.py
 
 # 查看汇总
 python -m json.tool data/eval/summary.json
 ```
-
-详细报告见 `docs/evaluation_report.md`。
 
 ---
 
@@ -291,31 +316,42 @@ python -m json.tool data/eval/summary.json
 | 关键词检索 | BM25 (rank-bm25) + jieba |
 | 语义检索 | ChromaDB + text2vec-base-chinese |
 | 文本生成 | OpenAI 兼容 API |
-| 风控 | answer_policy.py（关键词+规则） |
+| 风控 | policy.py（关键词+规则+来源审计）|
 | 格式转换 | PyMuPDF + BeautifulSoup + LibreOffice |
+| 部署 | Docker + docker-compose |
+| 测试 | pytest (107 tests) |
 
 ---
 
 ## 已知限制
 
-1. 关键词误报：含「学位」的非高风险问题偶尔被判为 high
-2. 学生手册 25 段 >800 中文字符（连续表格，无段落边界可切）
-3. DeepSeek API 偶发超时（已加 3 次重试）
-4. 3 份教务系统手册以截图为主，文字量少
+1. **向量索引依赖网络**：首次运行需下载 text2vec-base-chinese（~400MB），离线环境需预下载或设置 `ENABLE_VECTOR=false`
+2. **关键词误报**：含"学位"的非高风险问题偶尔被判为 medium（已从 high 降级），"学位证"相关信息性查询仍会触发 `need_human_confirm`
+3. **学生手册 25 段 >800 中文字符**：连续表格，无段落边界可切
+4. **DeepSeek API 偶发超时**：已加 3 次重试，极端情况下仍可能失败
+5. **3 份教务系统手册以截图为主**：文字量少，检索效果差
+6. **评测数据需更新**：`data/eval/summary.json` 是旧版无 LLM 运行结果，需配置 API Key 后重新跑
 
 ---
 
 ## 下一步
 
-| 优先级 | 任务 |
-|--------|------|
-| P0 | QQ Bot 接入实际框架测试 |
-| P0 | 通知频道自动抓取 + 增量索引 |
-| P1 | 优化融合权重 + 扩充高风险 case |
-| P2 | 部署供小范围试用 |
+| 优先级 | 任务 | 状态 |
+|--------|------|------|
+| **P0** | QQ Bot 接入实际框架（NapCat/ Lagrange 等）测试 | 待完成 |
+| **P0** | 通知频道自动抓取 + 增量索引（定时 crawl + diff） | 待完成 |
+| **P0** | 向量索引修复：在有网络环境下重跑 `build_index.py`，恢复混合检索双路 | 待完成 |
+| **P1** | 优化融合权重 + 通过 `.env` 暴露权重参数 | 待完成 |
+| **P1** | 重跑 70 题评测（需配好 LLM API Key），更新 `data/eval/` | 待完成 |
+| **P1** | 嵌入模型升级评估：`text2vec-base-chinese` → `bge-m3` | 待完成 |
+| **P2** | 部署供小范围试用（云服务器 / 校内服务器） | 待完成 |
+| **P2** | CI/CD：GitHub Actions 自动测试 + 构建 Docker 镜像 | 待完成 |
+| **P2** | 前端界面：简易 Web 问答页面或小程序 | 待完成 |
+| **持续** | 追踪本科生院通知更新，增量添加新文档 | 持续 |
+| **持续** | 根据用户反馈扩充高风险 case，调优关键词 | 持续 |
 
 ---
 
-> 本系统仅提供一般性校规查询，不替代教务员或辅导员的正式答复。高风险问题不会给出个人结论。
+> 本系统仅提供一般性校规和生活信息查询，不替代教务员或辅导员的正式答复。高风险问题不会给出个人结论。
 >
 > A（在线服务）× B（离线数据）× 契约（chunks.jsonl / manifest.json / POST /ask）
