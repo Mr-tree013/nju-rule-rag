@@ -5,6 +5,7 @@ Provides GET /health and POST /ask endpoints.
 """
 
 import logging
+import re
 import sys
 
 from fastapi import FastAPI, Request
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 from app.config import APP_TITLE, create_settings
 from app.errors import EmptyQuestionError
 from app.pipeline import answer_question
+from app.qq_bot import handle_message
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("app")
@@ -101,6 +103,28 @@ def ask(req: AskRequest):
                 "error": "internal_error",
             },
         )
+
+
+# ── QQ Bot webhook (OneBot v11 HTTP 回调) ────────────────────────────
+
+_RE_CQ = re.compile(r"\[CQ:\w+,.*?\]")
+
+
+@app.post("/qq")
+def qq_webhook(data: dict):
+    if data.get("message_type") != "group":
+        return {"reply": ""}
+
+    raw = data.get("raw_message", "")
+    s = create_settings()
+    self_id = s.qq_bot_self_id
+
+    if self_id and f"[CQ:at,qq={self_id}]" not in raw:
+        return {"reply": ""}
+
+    text = _RE_CQ.sub("", raw).strip()
+    reply = handle_message(text)
+    return {"reply": reply}
 
 
 @app.exception_handler(EmptyQuestionError)

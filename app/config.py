@@ -107,6 +107,7 @@ class Settings:
 
     # ── QQ Bot ───────────────────────────────────────────────────
 
+    qq_bot_self_id: str = ""
     qq_bot_api_base_url: str = "http://127.0.0.1:8000"
     qq_bot_max_reply_length: int = 800
     qq_bot_request_timeout: int = 30
@@ -171,6 +172,7 @@ def create_settings() -> Settings:
         request_timeout=60,
         max_answer_length=600,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
+        qq_bot_self_id=os.getenv("QQ_BOT_SELF_ID", ""),
         qq_bot_api_base_url=os.getenv("QQ_BOT_API_BASE_URL", "http://127.0.0.1:8000"),
         qq_bot_max_reply_length=800,
         qq_bot_request_timeout=30,
@@ -228,6 +230,7 @@ def __getattr__(name: str):
         "MIN_RELIABLE_SCORE": lambda s: s.min_reliable_score,
         "HIGH_RISK_MIN_SCORE": lambda s: s.high_risk_min_score,
         "LOCAL_EMBEDDING_MODEL": lambda s: s.local_embedding_model,
+        "QQ_BOT_SELF_ID": lambda s: s.qq_bot_self_id,
     }
     if name in _map:
         return _map[name](_get_settings())
