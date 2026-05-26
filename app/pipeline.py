@@ -1,0 +1,238 @@
+"""
+RAG question-answering pipeline.
+
+Orchestrates: classify → retrieve → filter → prompt → LLM → format.
+Each step is a named method so subclasses can override individual behaviours
+without rewriting the whole flow.
+"""
+
+import time
+from typing import Any
+
+from app.config import Settings
+from app.errors import LLMError, EmptyQuestionError
+from app.llm_client import LLMClient
+from app.policy import (
+    ClassificationResult,
+    ResponseTemplates,
+    RiskClassifier,
+    RiskLevel,
+)
+from app.retriever import HybridRetriever, Retriever
+
+
+class RAGPipeline:
+    """
+    Full RAG pipeline from question to answer dict.
+
+    Dependencies are injected via the constructor — no global state.
+    Override step methods in a subclass to customise behaviour.
+    """
+
+    def __init__(
+        self,
+        retriever: Retriever,
+        llm: LLMClient,
+        classifier: RiskClassifier | None = None,
+        templates: ResponseTemplates | None = None,
+        settings: Settings | None = None,
+    ):
+        self._retriever = retriever
+        self._llm = llm
+        self._classifier = classifier or RiskClassifier()
+        self._templates = templates or ResponseTemplates()
+        self._settings = settings or Settings()
+
+    # ── Main entry point ────────────────────────────────────────
+
+    def answer(self, question: str) -> dict[str, Any]:
+        """Run the full pipeline and return the ``/ask`` response dict."""
+        t_start = time.time()
+
+        # 1. Validate input
+        if not question or not question.strip():
+            return self._empty_question_response()
+
+        # 2. Classify risk
+        classification = self._classify(question)
+
+        # 3. Retrieve
+        try:
+            chunks = self._retrieve(question)
+        except Exception:
+            return self._fallback_response(question, classification, t_start, retrieval_count=0)
+
+        retrieval_count = len(chunks)
+
+        # 4. Filter by reliability
+        reliable = self._filter_chunks(chunks, classification.level)
+
+        # 5. No evidence → refusal
+        if not reliable:
+            return self._no_evidence_response(question, classification, t_start, retrieval_count)
+
+        # 6. Build prompt & call LLM
+        messages = self._build_prompt(question, reliable, classification.level)
+        try:
+            answer_text = self._generate(messages)
+        except LLMError:
+            return self._fallback_response(question, classification, t_start, retrieval_count)
+
+        # 7. Format final response
+        return self._format_response(question, answer_text, classification, reliable, t_start, retrieval_count)
+
+    # ── Step methods (override in subclasses) ───────────────────
+
+    def _classify(self, question: str) -> ClassificationResult:
+        return self._classifier.classify(question)
+
+    def _retrieve(self, question: str) -> list[dict]:
+        return self._retriever.search(question)
+
+    def _filter_chunks(self, chunks: list[dict], level: RiskLevel) -> list[dict]:
+        min_score = self._settings.min_reliable_score
+        if level == RiskLevel.HIGH:
+            min_score = max(min_score, self._settings.high_risk_min_score)
+        return [c for c in chunks if c["score"] >= min_score]
+
+    def _build_prompt(
+        self, question: str, chunks: list[dict], level: RiskLevel
+    ) -> list[dict[str, str]]:
+        context = self._build_context(chunks)
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": self._settings.system_prompt},
+            {"role": "user", "content": f"【参考资料片段】\n\n{context}\n\n【用户问题】\n{question}"},
+        ]
+        if level == RiskLevel.HIGH:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "（注意：这是一个高风险问题。请只描述校规中已有的客观规定，"
+                        "不要对用户个人情况做任何判断或结论。）"
+                    ),
+                }
+            )
+        return messages
+
+    def _build_context(self, chunks: list[dict]) -> str:
+        if not chunks:
+            return "（无参考资料）"
+        parts = []
+        for c in chunks:
+            section = c.get("article", c.get("section", "无"))
+            parts.append(f"[来源: {c['title']} | 条款: {section}]\n{c['content']}")
+        return "\n\n---\n\n".join(parts)
+
+    def _generate(self, messages: list[dict]) -> str:
+        return self._llm.chat(messages, temperature=0.2)
+
+    def _format_response(
+        self,
+        question: str,
+        answer_text: str,
+        classification: ClassificationResult,
+        chunks: list[dict],
+        t_start: float,
+        retrieval_count: int,
+    ) -> dict[str, Any]:
+        # Length cap
+        limit = self._settings.max_answer_length
+        if len(answer_text) > limit:
+            answer_text = answer_text[:limit] + "..."
+
+        # High-risk notice
+        if classification.level == RiskLevel.HIGH:
+            answer_text += "\n\n" + self._templates.high_risk_notice(question)
+
+        sources = self._extract_sources(chunks[:5])
+        latency = round(time.time() - t_start, 2)
+
+        return {
+            "question": question,
+            "answer": answer_text,
+            "risk_level": classification.level,
+            "need_human_confirm": self._classifier.needs_human_confirm(
+                question, classification.level
+            ),
+            "sources": sources,
+            "debug": {"retrieval_count": retrieval_count, "latency": latency},
+        }
+
+    # ── Helpers ─────────────────────────────────────────────────
+
+    def _extract_sources(self, chunks: list[dict]) -> list[dict]:
+        return [
+            {
+                "chunk_id": c["chunk_id"],
+                "source_id": c.get("source_id", c["chunk_id"].rsplit("-", 1)[0]),
+                "title": c["title"],
+                "url": c.get("url", ""),
+                "priority": c.get("priority", 5),
+            }
+            for c in chunks
+        ]
+
+    def _empty_question_response(self) -> dict[str, Any]:
+        return {
+            "question": "",
+            "answer": "请输入您的问题。",
+            "risk_level": "low",
+            "need_human_confirm": False,
+            "sources": [],
+            "debug": {"retrieval_count": 0, "latency": 0},
+        }
+
+    def _no_evidence_response(
+        self,
+        question: str,
+        classification: ClassificationResult,
+        t_start: float,
+        retrieval_count: int,
+    ) -> dict[str, Any]:
+        latency = round(time.time() - t_start, 2)
+        if classification.level == RiskLevel.HIGH:
+            result = self._templates.high_risk_no_evidence(question)
+        else:
+            result = self._templates.no_evidence(question)
+            result["risk_level"] = classification.level
+            result["need_human_confirm"] = self._classifier.needs_human_confirm(
+                question, classification.level
+            )
+        result["debug"] = {"retrieval_count": retrieval_count, "latency": latency}
+        return result
+
+    def _fallback_response(
+        self,
+        question: str,
+        classification: ClassificationResult,
+        t_start: float,
+        retrieval_count: int,
+    ) -> dict[str, Any]:
+        latency = round(time.time() - t_start, 2)
+        return {
+            "question": question,
+            "answer": "系统暂时不可用，请稍后再试。",
+            "risk_level": classification.level,
+            "need_human_confirm": True,
+            "sources": [],
+            "debug": {"retrieval_count": retrieval_count, "latency": latency},
+        }
+
+
+# ── Backward-compatible singleton ────────────────────────────────────
+
+_pipeline: RAGPipeline | None = None
+
+
+def _get_pipeline() -> RAGPipeline:
+    global _pipeline
+    if _pipeline is None:
+        from app.deps import create_pipeline
+        _pipeline = create_pipeline()
+    return _pipeline
+
+
+def answer_question(question: str) -> dict[str, Any]:
+    """Backward-compatible entry point.  Prefer ``RAGPipeline.answer()``."""
+    return _get_pipeline().answer(question)

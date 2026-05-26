@@ -11,7 +11,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.config import APP_TITLE
-from app.rag_pipeline import answer_question
+from app.errors import EmptyQuestionError
+from app.pipeline import answer_question
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("app")
@@ -61,12 +62,6 @@ def ask(req: AskRequest):
                 "error": "internal_error",
             },
         )
-
-
-# ── error handling ──────────────────────────────────────────────
-
-class EmptyQuestionError(ValueError):
-    pass
 
 
 @app.exception_handler(EmptyQuestionError)

@@ -1,10 +1,10 @@
 {
-  "built_at": "2026-05-25 02:21:39",
+  "built_at": "2026-05-26 18:27:31",
   "chunks_file": "data/chunks/chunks.jsonl",
-  "chunk_count": 435,
+  "chunk_count": 496,
   "bm25_index": "data/index/bm25.pkl",
   "chunk_lookup": "data/index/chunk_lookup.json",
   "vector_index": "data/index/chroma",
-  "embedding_model": "shibing624/text2vec-base-chinese",
-  "status": "ok"
+  "embedding_model": null,
+  "status": "skipped"
 }

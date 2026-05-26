@@ -1,186 +1,153 @@
 """
-在线检索模块。
+Online retrieval module.
 
-从离线构建的索引加载 BM25 和 Chroma，对用户问题执行混合检索。
+Provides a ``Retriever`` protocol and three implementations:
+- ``BM25Retriever`` — keyword-based search via jieba + rank-bm25
+- ``VectorRetriever`` — semantic search via ChromaDB + sentence-transformers
+- ``HybridRetriever`` — weighted fusion of BM25 + vector + priority bonus
 
-不负责：
-- 构建索引（由 scripts/build_index.py 负责）
-- 调用 LLM（由 app/llm_client.py 负责）
-
-依赖：
-- data/chunks/chunks.jsonl           → chunk 原始数据
-- data/index/bm25.pkl                → BM25 索引（可选，缺失时从 chunks 临时构建）
-- data/index/chroma/                 → 向量索引（可选，缺失时仅运行 BM25）
-- data/index/manifest.json           → 索引元信息（启动时读取）
+All retrievers gracefully degrade when their backing index is missing,
+logging a warning and returning empty results.
 """
 
 import json
-import os
 import pickle
 from pathlib import Path
+from typing import Callable, Protocol
 
 import chromadb
 import jieba
-from chromadb.config import Settings
+from chromadb.config import Settings as ChromaSettings
 from rank_bm25 import BM25Okapi
 
-from app.config import (
-    BM25_TOP_K,
-    CHUNKS_FILE,
-    HYBRID_TOP_K,
-    INDEX_DIR,
-    LOCAL_EMBEDDING_MODEL,
-    VECTOR_TOP_K,
-)
+from app.config import RetrievalWeights
+from app.errors import RetrievalError
 
-# --------------------------------------------------------------------
-# 路径解析
-# --------------------------------------------------------------------
-
-ROOT = Path(__file__).resolve().parent.parent
+# ── Tokenizer ────────────────────────────────────────────────────────
 
 
-def _resolve(path_str):
-    p = Path(path_str)
-    if p.is_absolute():
-        return p
-    return ROOT / p
-
-
-CHUNKS_PATH = _resolve(CHUNKS_FILE)
-INDEX_PATH = _resolve(INDEX_DIR)
-BM25_PATH = INDEX_PATH / "bm25.pkl"
-CHROMA_PATH = INDEX_PATH / "chroma"
-MANIFEST_PATH = INDEX_PATH / "manifest.json"
-CHUNK_LOOKUP_PATH = INDEX_PATH / "chunk_lookup.json"
-COLLECTION_NAME = "nju_rules"
-
-# --------------------------------------------------------------------
-# 分词工具
-# --------------------------------------------------------------------
-
-
-def tokenize(text):
-    """中文分词，BM25 构建和搜索公用。"""
+def default_tokenizer(text: str) -> list[str]:
+    """Chinese word segmentation via jieba (default for BM25)."""
     return list(jieba.cut(text))
 
 
-# --------------------------------------------------------------------
-# BM25Retriever
-# --------------------------------------------------------------------
+# ── Protocol ─────────────────────────────────────────────────────────
+
+
+class Retriever(Protocol):
+    """Structural interface for any chunk retriever."""
+
+    def search(self, question: str, top_k: int = 5) -> list[dict]: ...
+
+    @property
+    def is_loaded(self) -> bool: ...
+
+    @property
+    def chunk_count(self) -> int: ...
+
+
+# ── BM25 Retriever ───────────────────────────────────────────────────
 
 
 class BM25Retriever:
     """
-    BM25 关键词检索器。
+    BM25 keyword retriever.
 
-    优先从离线构建的 bm25_index.pkl 加载索引；
-    如果文件不存在，从 chunks 动态构建（仅开发 / 兜底使用，会打印 warning）。
+    Loads a pre-built ``bm25.pkl`` index when available; falls back to
+    building a temporary in-memory index from chunks otherwise (development
+    convenience — prints a warning).
     """
 
-    def __init__(self):
-        self._chunks = []
-        self._chunks_by_id = {}
-        self._bm25 = None
-        self._loaded = False
+    COLLECTION = "nju_rules"
 
-        self._load_chunks()
-        if BM25_PATH.exists():
-            self._load_index()
+    def __init__(
+        self,
+        chunks_path: Path,
+        index_path: Path,
+        chunk_lookup_path: Path,
+        tokenizer: Callable[[str], list[str]] | None = None,
+    ):
+        self._chunks: list[dict] = []
+        self._chunks_by_id: dict[str, dict] = {}
+        self._bm25: BM25Okapi | None = None
+        self._loaded = False
+        self._tokenizer = tokenizer or default_tokenizer
+
+        self._load_chunks(chunks_path, chunk_lookup_path)
+        if index_path.exists():
+            self._load_index(index_path)
         else:
             self._build_fallback()
         self._loaded = self._bm25 is not None
 
-    # ---- 加载 ----
+    # ── Loading ──────────────────────────────────────────────────
 
-    def _load_chunks(self):
-        """从 chunk_lookup.json 或 chunks.jsonl 加载。"""
-        if CHUNK_LOOKUP_PATH.exists():
-            self._load_chunk_lookup()
-        elif CHUNKS_PATH.exists():
-            self._load_chunks_jsonl()
-        else:
-            print(f"[BM25Retriever] chunks 数据不存在: {CHUNKS_PATH}")
+    def _load_chunks(self, chunks_path: Path, lookup_path: Path):
+        if lookup_path.exists():
+            with open(lookup_path, encoding="utf-8") as f:
+                lookup = json.load(f)
+            self._chunks = list(lookup.values())
+            self._chunks_by_id = lookup
+        elif chunks_path.exists():
+            with open(chunks_path, encoding="utf-8") as f:
+                for line in f:
+                    if not (line := line.strip()):
+                        continue
+                    c = json.loads(line)
+                    self._chunks.append(c)
+                    self._chunks_by_id[c["chunk_id"]] = c
 
-    def _load_chunk_lookup(self):
-        with open(CHUNK_LOOKUP_PATH, encoding="utf-8") as f:
-            lookup = json.load(f)
-        self._chunks = list(lookup.values())
-        self._chunks_by_id = lookup
-
-    def _load_chunks_jsonl(self):
-        with open(CHUNKS_PATH, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                c = json.loads(line)
-                self._chunks.append(c)
-                self._chunks_by_id[c["chunk_id"]] = c
-
-    def _load_index(self):
+    def _load_index(self, path: Path):
         try:
-            with open(BM25_PATH, "rb") as f:
+            with open(path, "rb") as f:
                 data = pickle.load(f)
             self._bm25 = data["model"]
-            # 优先使用索引中自带的 chunks（与索引构建时一致）
             if "chunks" in data and data["chunks"]:
                 self._chunks = data["chunks"]
                 self._chunks_by_id = {c["chunk_id"]: c for c in data["chunks"]}
-        except Exception as e:
-            print(f"[BM25Retriever] 加载索引失败 ({e})，回退到动态构建。")
+        except Exception as exc:
+            print(f"[BM25Retriever] 加载索引失败 ({exc})，回退到动态构建。")
             self._build_fallback()
 
     def _build_fallback(self):
         if not self._chunks:
             return
         print(
-            f"[BM25Retriever] 警告：未找到离线索引，从 {len(self._chunks)} 个 chunk 动态构建 BM25。"
+            f"[BM25Retriever] 警告：未找到离线索引，"
+            f"从 {len(self._chunks)} 个 chunk 动态构建 BM25。"
             " 生产环境请运行 scripts/build_index.py。"
         )
         try:
             corpus = [c["content"] for c in self._chunks]
-            tokenized = [tokenize(doc) for doc in corpus]
+            tokenized = [self._tokenizer(doc) for doc in corpus]
             self._bm25 = BM25Okapi(tokenized)
-        except Exception as e:
-            print(f"[BM25Retriever] 动态构建失败: {e}")
+        except Exception as exc:
+            print(f"[BM25Retriever] 动态构建失败: {exc}")
 
-    # ---- 状态 ----
+    # ── Properties ───────────────────────────────────────────────
 
     @property
-    def is_loaded(self):
+    def is_loaded(self) -> bool:
         return self._loaded
 
     @property
-    def chunk_count(self):
+    def chunk_count(self) -> int:
         return len(self._chunks)
 
-    # ---- 检索 ----
+    # ── Search ───────────────────────────────────────────────────
 
-    def search(self, question, top_k=None):
-        """
-        返回列表，每项包含：
-          chunk_id, title, content, url, priority, score
-        """
-        if top_k is None:
-            top_k = BM25_TOP_K
-
-        if not self._bm25 or not self._chunks:
-            return []
-
-        if not question or not question.strip():
+    def search(self, question: str, top_k: int = 10) -> list[dict]:
+        if not self._bm25 or not self._chunks or not (question and question.strip()):
             return []
 
         try:
-            tokens = tokenize(question)
+            tokens = self._tokenizer(question)
             scores = self._bm25.get_scores(tokens)
-
-            # 收集 (index, score) 对，按分数降序取 top_k
             scored = [(i, s) for i, s in enumerate(scores) if s > 0]
             scored.sort(key=lambda x: x[1], reverse=True)
             scored = scored[:top_k]
 
-            results = []
+            results: list[dict] = []
             for idx, score in scored:
                 if idx >= len(self._chunks):
                     continue
@@ -196,112 +163,102 @@ class BM25Retriever:
                     }
                 )
             return results
-        except Exception as e:
-            print(f"[BM25Retriever] 检索异常: {e}")
+        except Exception as exc:
+            print(f"[BM25Retriever] 检索异常: {exc}")
             return []
 
 
-# --------------------------------------------------------------------
-# VectorRetriever
-# --------------------------------------------------------------------
+# ── Vector Retriever ─────────────────────────────────────────────────
 
 
 class VectorRetriever:
     """
-    Chroma 向量检索器。
+    ChromaDB vector retriever.
 
-    使用 sentence-transformers 中文 embedding 模型（从 .env 配置）。
-    如果 Chroma 目录不存在或加载失败，优雅降级，不中断服务。
+    Uses a local sentence-transformers model for embedding.
+    Gracefully degrades (returns empty results) when the Chroma directory
+    is missing or fails to load.
     """
 
-    def __init__(self):
+    COLLECTION = "nju_rules"
+
+    def __init__(
+        self,
+        chroma_path: Path,
+        chunks_path: Path,
+        chunk_lookup_path: Path,
+        embedding_model: str = "shibing624/text2vec-base-chinese",
+        enable: bool = True,
+    ):
         self._collection = None
-        self._chunks_by_id = {}
+        self._chunks_by_id: dict[str, dict] = {}
         self._loaded = False
 
-        self._load_chunks()
-        self._load_index()
+        self._load_chunks(chunks_path, chunk_lookup_path)
+        if enable:
+            self._load_index(chroma_path, embedding_model)
 
-    def _load_chunks(self):
-        """从 chunk_lookup.json 或 chunks.jsonl 加载。"""
-        if CHUNK_LOOKUP_PATH.exists():
-            with open(CHUNK_LOOKUP_PATH, encoding="utf-8") as f:
+    def _load_chunks(self, chunks_path: Path, lookup_path: Path):
+        if lookup_path.exists():
+            with open(lookup_path, encoding="utf-8") as f:
                 self._chunks_by_id = json.load(f)
             return
-        if not CHUNKS_PATH.exists():
+        if not chunks_path.exists():
             return
-        with open(CHUNKS_PATH, encoding="utf-8") as f:
+        with open(chunks_path, encoding="utf-8") as f:
             for line in f:
-                line = line.strip()
-                if not line:
+                if not (line := line.strip()):
                     continue
                 c = json.loads(line)
                 self._chunks_by_id[c["chunk_id"]] = c
 
-    def _load_index(self):
-        if not CHROMA_PATH.exists():
+    def _load_index(self, chroma_path: Path, embedding_model: str):
+        if not chroma_path.exists():
             print("[VectorRetriever] Chroma 目录不存在，跳过向量检索。")
             return
         try:
             client = chromadb.PersistentClient(
-                path=str(CHROMA_PATH),
-                settings=Settings(anonymized_telemetry=False),
+                path=str(chroma_path),
+                settings=ChromaSettings(anonymized_telemetry=False),
             )
-            # Use the same embedding model that build_index.py used.
             embedding_fn = None
             try:
                 from chromadb.utils import embedding_functions
                 embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name=LOCAL_EMBEDDING_MODEL,
+                    model_name=embedding_model,
                 )
             except ImportError:
                 pass
 
             self._collection = client.get_collection(
-                COLLECTION_NAME, embedding_function=embedding_fn
+                self.COLLECTION, embedding_function=embedding_fn
             )
             self._loaded = True
-        except Exception as e:
-            print(f"[VectorRetriever] 加载 Chroma 失败 ({e})，向量检索不可用。")
-
-    # ---- 状态 ----
+        except Exception as exc:
+            print(f"[VectorRetriever] 加载 Chroma 失败 ({exc})，向量检索不可用。")
 
     @property
-    def is_loaded(self):
+    def is_loaded(self) -> bool:
         return self._loaded
 
-    # ---- 检索 ----
+    @property
+    def chunk_count(self) -> int:
+        return len(self._chunks_by_id)
 
-    def search(self, question, top_k=None):
-        """
-        返回列表，每项包含：
-          chunk_id, title, content, url, priority, score
-
-        score 由余弦距离转换而来（0=不相关 ~ 1=完全匹配）。
-        """
-        if top_k is None:
-            top_k = VECTOR_TOP_K
-
-        if not self._collection:
-            return []
-
-        if not question or not question.strip():
+    def search(self, question: str, top_k: int = 10) -> list[dict]:
+        if not self._collection or not (question and question.strip()):
             return []
 
         try:
-            raw = self._collection.query(
-                query_texts=[question],
-                n_results=top_k,
-            )
+            raw = self._collection.query(query_texts=[question], n_results=top_k)
             ids_list = raw.get("ids", [[]])[0]
             distances_list = raw.get("distances", [[]])[0]
 
-            results = []
+            results: list[dict] = []
             for cid, dist in zip(ids_list, distances_list):
                 chunk = self._chunks_by_id.get(cid)
                 if not chunk:
                     continue
-                # 余弦距离 ∈ [0, 2]，转为分数：距离 0=完美匹配→1.0，距离 2=完全相反→0.0
                 sim = max(0.0, 1.0 - dist / 2.0)
                 results.append(
                     {
@@ -314,44 +271,52 @@ class VectorRetriever:
                     }
                 )
             return results
-        except Exception as e:
-            print(f"[VectorRetriever] 检索异常: {e}")
+        except Exception as exc:
+            print(f"[VectorRetriever] 检索异常: {exc}")
             return []
 
 
-# --------------------------------------------------------------------
-# HybridRetriever
-# --------------------------------------------------------------------
+# ── Hybrid Retriever ─────────────────────────────────────────────────
 
 
 class HybridRetriever:
     """
-    混合检索器，融合 BM25 关键词匹配与 Chroma 语义匹配。
+    Weighted fusion of BM25 keyword search and Chroma vector search.
 
-    最终公式：
-      final_score = bm25_norm * 0.45 + vector_norm * 0.35 + priority_score * 0.2
+    Score formula::
 
-    其中 priority_score = (6 - priority) / 5，使 priority=1 → 1.0，priority=5 → 0.2。
-    权威来源（priority 小）在最终排序中获得更多加成。
+        final = bm25_norm × w_bm25 + vector_norm × w_vector + priority_bonus × w_priority
 
-    当一路不可用时，权重自动调整，保证仍能返回结果。
+    where ``priority_bonus = (6 - priority) / 5`` (priority 1 → 1.0, priority 5 → 0.2).
+
+    If one sub-retriever is unavailable, weights are adjusted automatically.
     """
 
-    def __init__(self):
-        self._bm25 = BM25Retriever()
-        self._vector = VectorRetriever()
-        self._manifest = self._read_manifest()
+    def __init__(
+        self,
+        bm25: BM25Retriever,
+        vector: VectorRetriever,
+        manifest_path: Path,
+        weights: RetrievalWeights | None = None,
+        top_k: int = 5,
+    ):
+        self._bm25 = bm25
+        self._vector = vector
+        self._weights = weights or RetrievalWeights()
+        self._top_k = top_k
+        self._manifest = self._read_manifest(manifest_path)
 
-    def _read_manifest(self):
+    @staticmethod
+    def _read_manifest(path: Path) -> dict:
         try:
-            with open(MANIFEST_PATH, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {}
 
-    # ---- 状态 ----
+    # ── Status ───────────────────────────────────────────────────
 
-    def status(self):
+    def status(self) -> dict:
         m = self._manifest
         return {
             "bm25_loaded": self._bm25.is_loaded,
@@ -362,46 +327,34 @@ class HybridRetriever:
             "manifest_status": m.get("status", "missing"),
         }
 
-    # ---- 检索 ----
+    # ── Search ───────────────────────────────────────────────────
 
-    def search(self, question, top_k=None):
-        """
-        执行混合检索，返回 top_k 条去重结果。
-
-        每条结果包含：
-          chunk_id, title, content, url, priority, score, score_detail
-        """
-        if top_k is None:
-            top_k = HYBRID_TOP_K
-
+    def search(self, question: str, top_k: int | None = None) -> list[dict]:
+        k = top_k if top_k is not None else self._top_k
         if not question or not question.strip():
             return []
 
-        # 两路并行召回
-        bm25_raw = self._bm25.search(question, top_k=BM25_TOP_K)
-        vector_raw = self._vector.search(question, top_k=VECTOR_TOP_K)
+        bm25_raw = self._bm25.search(question, top_k=10)
+        vector_raw = self._vector.search(question, top_k=10)
 
         use_bm25 = len(bm25_raw) > 0
         use_vector = len(vector_raw) > 0
 
-        # 两路都不可用
         if not use_bm25 and not use_vector:
             return []
 
-        # 归一化各路的分数
-        bm25_norm = self._normalize(bm25_raw)
-        vector_norm = self._normalize(vector_raw)
-
-        # 融合权重：缺一路时另一路权重提高
+        # Select weight profile based on available retrievers
         if use_bm25 and use_vector:
-            w_bm25, w_vec, w_pri = 0.45, 0.35, 0.20
+            w = self._weights
         elif use_bm25:
-            w_bm25, w_vec, w_pri = 0.80, 0.00, 0.20
+            w = self._weights.fallback_bm25_only()
         else:
-            w_bm25, w_vec, w_pri = 0.00, 0.80, 0.20
+            w = self._weights.fallback_vector_only()
 
-        # 按 chunk_id 合并去重，同时保留各路分数用于 score_detail
-        merged = {}  # chunk_id → { "bm25_score", "vector_score", "priority", "chunk" }
+        bm25_norm = self._minmax_norm(bm25_raw)
+        vector_norm = self._minmax_norm(vector_raw)
+
+        merged: dict[str, dict] = {}
         for item in bm25_norm:
             cid = item["chunk_id"]
             merged[cid] = {
@@ -414,9 +367,6 @@ class HybridRetriever:
             cid = item["chunk_id"]
             if cid in merged:
                 merged[cid]["vector_score"] = item["score"]
-                if merged[cid]["chunk"]["score"] < item["score"]:
-                    # 如果向量分数更高，用向量的 chunk（可能 title/content 更精确）
-                    pass
             else:
                 merged[cid] = {
                     "bm25_score": 0.0,
@@ -425,22 +375,20 @@ class HybridRetriever:
                     "chunk": item,
                 }
 
-        # 计算最终分数
-        scored = []
+        scored: list[tuple[str, float, dict]] = []
         for cid, data in merged.items():
-            priority_score = (6 - data["priority"]) / 5.0  # 1→1.0, 5→0.2
+            priority_bonus = (6 - data["priority"]) / 5.0
             final = (
-                data["bm25_score"] * w_bm25
-                + data["vector_score"] * w_vec
-                + priority_score * w_pri
+                data["bm25_score"] * w.bm25
+                + data["vector_score"] * w.vector
+                + priority_bonus * w.priority
             )
             scored.append((cid, final, data))
 
         scored.sort(key=lambda x: x[1], reverse=True)
-        scored = scored[:top_k]
+        scored = scored[:k]
 
-        # 组装输出
-        results = []
+        results: list[dict] = []
         for cid, final_score, data in scored:
             chunk = data["chunk"]
             results.append(
@@ -455,39 +403,72 @@ class HybridRetriever:
                         "bm25_raw": round(data["bm25_score"], 4),
                         "vector_raw": round(data["vector_score"], 4),
                         "priority_bonus": round(
-                            (6 - data["priority"]) / 5.0 * w_pri, 4
+                            (6 - data["priority"]) / 5.0 * w.priority, 4
                         ),
-                        "bm25_weight": w_bm25,
-                        "vector_weight": w_vec,
-                        "priority_weight": w_pri,
+                        "bm25_weight": w.bm25,
+                        "vector_weight": w.vector,
+                        "priority_weight": w.priority,
                     },
                 }
             )
         return results
 
-    # ---- 工具 ----
-
     @staticmethod
-    def _normalize(items):
-        """Min-max 归一化到 [0, 1]，列表为空或全零时返回原列表。"""
+    def _minmax_norm(items: list[dict]) -> list[dict]:
         if not items:
             return []
         scores = [x["score"] for x in items]
-        mn = min(scores)
-        mx = max(scores)
+        mn, mx = min(scores), max(scores)
         if mx == mn:
             return [{**x, "score": 1.0} for x in items]
         return [{**x, "score": (x["score"] - mn) / (mx - mn)} for x in items]
 
 
-# --------------------------------------------------------------------
-# 便捷入口
-# --------------------------------------------------------------------
+# ── Convenience factory ──────────────────────────────────────────────
 
-def create_retriever():
-    """创建 HybridRetriever 实例并打印加载状态。"""
-    retriever = HybridRetriever()
+
+def create_retriever(
+    chunks_path: Path | str = "data/chunks/chunks.jsonl",
+    index_dir: Path | str = "data/index",
+    embedding_model: str = "shibing624/text2vec-base-chinese",
+    enable_vector: bool = True,
+    weights: RetrievalWeights | None = None,
+) -> HybridRetriever:
+    """Build a ``HybridRetriever`` from paths on disk.
+
+    This is the quick-start factory.  For production, prefer constructing
+    each retriever explicitly via ``deps.create_retriever()``.
+    """
+    root = Path(__file__).resolve().parent.parent
+    cp = _resolve(root, chunks_path)
+    idx = _resolve(root, index_dir)
+
+    bm25 = BM25Retriever(
+        chunks_path=cp,
+        index_path=idx / "bm25.pkl",
+        chunk_lookup_path=idx / "chunk_lookup.json",
+    )
+    vector = VectorRetriever(
+        chroma_path=idx / "chroma",
+        chunks_path=cp,
+        chunk_lookup_path=idx / "chunk_lookup.json",
+        embedding_model=embedding_model,
+        enable=enable_vector,
+    )
+    retriever = HybridRetriever(
+        bm25=bm25,
+        vector=vector,
+        manifest_path=idx / "manifest.json",
+        weights=weights,
+    )
     status = retriever.status()
-    print(f"[Retriever] BM25={status['bm25_loaded']}({status['bm25_chunks']} chunks), "
-          f"Vector={status['vector_loaded']}")
+    print(
+        f"[Retriever] BM25={status['bm25_loaded']}({status['bm25_chunks']} chunks), "
+        f"Vector={status['vector_loaded']}"
+    )
     return retriever
+
+
+def _resolve(root: Path, path: str | Path) -> Path:
+    p = Path(path)
+    return p if p.is_absolute() else root / p

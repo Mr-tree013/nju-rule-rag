@@ -1,29 +1,27 @@
 """
-QQ Bot 适配层。
+QQ Bot adapter layer.
 
-只负责：接收消息 → 调用 /ask → 格式化回复。
-不包含任何 RAG、检索、风险判断逻辑。
+Responsibility boundary: receives messages → calls /ask → formats replies.
+Contains zero RAG, retrieval, or risk-judgment logic.
 """
 
 import requests
 
-# 可通过环境变量配置，默认指向本地开发服务。
-API_BASE_URL = "http://127.0.0.1:8000"
+from app.config import get_settings
 
-MAX_REPLY_LENGTH = 800
-REQUEST_TIMEOUT = 30  # seconds
+
+def _settings():
+    return get_settings()
 
 
 def ask_backend(question: str) -> dict | None:
-    """
-    调用 FastAPI /ask 接口，返回完整响应 dict。
-    失败时返回 None。
-    """
+    """Call the FastAPI ``/ask`` endpoint, return the full response dict."""
+    s = _settings()
     try:
         resp = requests.post(
-            f"{API_BASE_URL}/ask",
+            f"{s.qq_bot_api_base_url}/ask",
             json={"question": question},
-            timeout=REQUEST_TIMEOUT,
+            timeout=s.qq_bot_request_timeout,
         )
         if resp.status_code == 200:
             return resp.json()
@@ -34,22 +32,22 @@ def ask_backend(question: str) -> dict | None:
 
 def format_reply(question: str) -> str:
     """
-    将用户问题转换为 QQ 群回复文本。
+    Convert a user question into a QQ-group-friendly reply.
 
-    格式：
-      【结论】
-      ...（不超过 800 字）
+    Format::
 
-      【依据】
-      1. 《来源标题》
-      2. 《来源标题》
+        【结论】
+        ...（up to max_reply_length chars）
 
-      【提醒】
-      ...（仅高风险问题显示）
+        【依据】
+        1. 《来源标题》
+
+        【提醒】
+        ...（only for high-risk）
     """
+    s = _settings()
     data = ask_backend(question)
 
-    # 后端不可用
     if data is None:
         return "系统暂时不可用，请稍后再试。"
 
@@ -57,18 +55,11 @@ def format_reply(question: str) -> str:
     sources = data.get("sources", [])
     risk_level = data.get("risk_level", "")
 
-    # 后端返回了内部错误
     if data.get("error") == "internal_error" or risk_level == "unknown":
         return "系统暂时不可用，请稍后再试。"
 
-    lines = []
+    lines = ["【结论】", answer, ""]
 
-    # 结论
-    lines.append("【结论】")
-    lines.append(answer)
-    lines.append("")
-
-    # 依据（有来源时才显示）
     if sources:
         lines.append("【依据】")
         for i, src in enumerate(sources, 1):
@@ -76,7 +67,6 @@ def format_reply(question: str) -> str:
             lines.append(f"{i}. 《{title}》")
         lines.append("")
 
-    # 提醒（高风险问题追加）
     if risk_level == "high":
         lines.append("【提醒】")
         lines.append(
@@ -87,25 +77,21 @@ def format_reply(question: str) -> str:
 
     reply = "\n".join(lines).strip()
 
-    # 硬截断
-    if len(reply) > MAX_REPLY_LENGTH:
-        reply = reply[:MAX_REPLY_LENGTH] + "..."
+    if len(reply) > s.qq_bot_max_reply_length:
+        reply = reply[:s.qq_bot_max_reply_length] + "..."
 
     return reply
 
 
-# ── 触发入口（供 QQ Bot 框架调用）───────────────────────────────
-
 def handle_message(message: str) -> str:
     """
-    QQ Bot 消息处理入口。
+    QQ Bot message handler entry point.
 
-    识别 "/问 " 或 "/ask " 前缀，提取问题并返回格式化回复。
-    其他消息返回使用说明。
+    Recognises ``/问`` or ``/ask`` prefixes, extracts the question,
+    and returns a formatted reply.  All other messages receive a usage hint.
     """
     msg = message.strip()
 
-    # 识别命令前缀
     for prefix in ("/问 ", "/ask ", "/问", "/ask"):
         if msg.startswith(prefix):
             question = msg[len(prefix):].strip()
@@ -113,7 +99,6 @@ def handle_message(message: str) -> str:
                 return "请输入问题。例如：/问 缓考怎么申请？"
             return format_reply(question)
 
-    # 非命令消息
     return (
         "欢迎使用 NJU Rule RAG Bot！\n"
         "发送 /问 + 你的问题 即可查询校规。\n"

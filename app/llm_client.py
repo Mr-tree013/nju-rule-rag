@@ -1,156 +1,241 @@
 """
-LLM 与 Embedding API 封装。
+LLM and Embedding API client.
 
-支持通过 .env 配置切换不同 provider（DeepSeek / OpenAI / 通义千问 / 智谱）。
-所有 provider 使用 OpenAI 兼容的 API 格式。
-
-不暴露：API Key 不出现在日志中。
+Wraps an OpenAI-compatible chat + embeddings API with automatic retry
+and key masking in logs.  Supports DeepSeek, Qwen, Zhipu, OpenAI, and
+any other provider that speaks the same HTTP contract.
 """
 
 import time
+from typing import Any
 
 import requests
 
-from app.config import (
-    EMBEDDING_API_KEY,
-    EMBEDDING_BASE_URL,
-    EMBEDDING_MODEL,
-    LLM_API_KEY,
-    LLM_BASE_URL,
-    LLM_MODEL,
-)
-
-# ---------- 自定义异常 ----------
+from app.errors import LLMError
 
 
-class LLMError(Exception):
-    """LLM 调用异常，包含状态码和原始错误信息。"""
-
-    def __init__(self, message, status_code=None, orig=None):
-        super().__init__(message)
-        self.status_code = status_code
-        self.original = orig
-
-
-# ---------- 内部工具 ----------
-
-
-def _safe_key(key):
-    """返回脱敏后的 Key，日志输出用。"""
-    if not key or len(key) < 8:
-        return "***"
-    return key[:4] + "***" + key[-4:]
-
-
-RETRY_COUNT = 3
-RETRY_DELAYS = [1, 2, 4]  # 秒
-
-
-def _retry_request(method, url, headers, json_body, timeout=60):
+class LLMClient:
     """
-    发送 HTTP 请求，带自动重试。
+    OpenAI-compatible chat + embeddings client.
 
-    - 网络错误 → 重试
-    - 429（限流） → 重试
-    - 5xx → 重试
-    - 4xx（非 429） → 不重试，直接抛异常
+    Parameters:
+        api_key: Bearer token for the API.
+        base_url: Base URL (e.g. ``https://api.deepseek.com``).
+        model: Model name (e.g. ``deepseek-chat``).
+        retry_count: Max retries on transient failures.
+        retry_delays: Seconds to wait between retries (one per attempt).
+        timeout: HTTP request timeout in seconds.
     """
-    last_exc = None
-    for attempt in range(RETRY_COUNT + 1):
-        try:
-            resp = requests.request(
-                method, url, headers=headers, json=json_body, timeout=timeout
-            )
-            if resp.status_code < 400:
-                return resp
-            if resp.status_code == 429 or resp.status_code >= 500:
-                if attempt < RETRY_COUNT:
-                    delay = RETRY_DELAYS[attempt]
-                    print(f"[LLM] {resp.status_code} 错误，{delay}s 后重试 (第{attempt+1}次)")
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        retry_count: int = 3,
+        retry_delays: tuple[float, ...] = (1, 2, 4),
+        timeout: int = 60,
+    ):
+        if not api_key:
+            raise LLMError("LLM_API_KEY 未设置")
+        if not model:
+            raise LLMError("LLM_MODEL 未设置")
+
+        self._api_key = api_key
+        self._base_url = base_url
+        self._model = model
+        self._retry_count = retry_count
+        self._retry_delays = retry_delays
+        self._timeout = timeout
+
+    # ── Public API ───────────────────────────────────────────────
+
+    def chat(self, messages: list[dict], temperature: float = 0.2) -> str:
+        """Send a chat-completion request and return the reply text."""
+        url = f"{self._base_url}/chat/completions"
+        body = {
+            "model": self._model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        resp = self._request("POST", url, body)
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """Send an embeddings request and return the vector list."""
+        url = f"{self._base_url}/embeddings"
+        body = {"model": self._model, "input": texts}
+        resp = self._request("POST", url, body)
+        data = resp.json()
+        return [item["embedding"] for item in data["data"]]
+
+    # ── Internal ─────────────────────────────────────────────────
+
+    @property
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def _request(self, method: str, url: str, body: dict) -> requests.Response:
+        """Send an HTTP request with retry logic."""
+        last_exc: Exception | None = None
+
+        for attempt in range(self._retry_count + 1):
+            try:
+                resp = requests.request(
+                    method, url, headers=self._headers, json=body, timeout=self._timeout
+                )
+                if resp.status_code < 400:
+                    return resp
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    if attempt < self._retry_count:
+                        delay = self._retry_delays[attempt]
+                        print(
+                            f"[LLM] {resp.status_code} 错误，"
+                            f"{delay}s 后重试 (第{attempt + 1}次)"
+                        )
+                        time.sleep(delay)
+                        continue
+                raise LLMError(
+                    f"LLM API 返回 {resp.status_code}: {resp.text[:300]}",
+                    status_code=resp.status_code,
+                )
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < self._retry_count:
+                    delay = self._retry_delays[attempt]
+                    print(f"[LLM] 网络错误: {exc}，{delay}s 后重试 (第{attempt + 1}次)")
                     time.sleep(delay)
-                    continue
-            # 非重试错误
-            raise LLMError(
-                f"LLM API 返回 {resp.status_code}: {resp.text[:300]}",
-                status_code=resp.status_code,
-            )
-        except requests.RequestException as e:
-            last_exc = e
-            if attempt < RETRY_COUNT:
-                delay = RETRY_DELAYS[attempt]
-                print(f"[LLM] 网络错误: {e}，{delay}s 后重试 (第{attempt+1}次)")
-                time.sleep(delay)
-            else:
-                raise LLMError(f"LLM 网络请求失败: {e}", orig=e) from e
+                else:
+                    raise LLMError(f"LLM 网络请求失败: {exc}") from exc
 
-    raise LLMError(f"LLM 调用失败（已重试 {RETRY_COUNT} 次）", orig=last_exc)
-
-
-def _build_headers(api_key):
-    return {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-
-# ---------- 公开接口 ----------
-
-
-def chat(messages, temperature=0.2):
-    """
-    调用 LLM 聊天接口。
-
-    参数:
-        messages: [{"role": "system"|"user", "content": "..."}, ...]
-        temperature: 生成温度，默认 0.2（低随机性，适合事实问答）
-
-    返回:
-        str: 模型回复文本
-
-    异常:
-        LLMError: 配置缺失或调用失败
-    """
-    if not LLM_API_KEY or not LLM_MODEL:
-        raise LLMError("LLM 未配置: 请在 .env 中设置 LLM_API_KEY 和 LLM_MODEL")
-
-    url = f"{LLM_BASE_URL}/chat/completions"
-    headers = _build_headers(LLM_API_KEY)
-    body = {
-        "model": LLM_MODEL,
-        "messages": messages,
-        "temperature": temperature,
-    }
-
-    resp = _retry_request("POST", url, headers, body)
-    data = resp.json()
-    return data["choices"][0]["message"]["content"]
-
-
-def embed_texts(texts):
-    """
-    调用 Embedding 接口，将文本列表转为向量列表。
-
-    参数:
-        texts: ["文本1", "文本2", ...]
-
-    返回:
-        [[float, ...], ...]  每个文本对应一个向量
-
-    异常:
-        LLMError: 配置缺失或调用失败
-    """
-    if not EMBEDDING_API_KEY or not EMBEDDING_MODEL:
         raise LLMError(
-            "Embedding 未配置: 请在 .env 中设置 EMBEDDING_API_KEY 和 EMBEDDING_MODEL"
+            f"LLM 调用失败（已重试 {self._retry_count} 次）"
+        ) from last_exc
+
+    @staticmethod
+    def mask_key(key: str) -> str:
+        """Return a log-safe version of an API key."""
+        if not key or len(key) < 8:
+            return "***"
+        return key[:4] + "***" + key[-4:]
+
+    # ── Convenience ──────────────────────────────────────────────
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    @property
+    def key_display(self) -> str:
+        return self.mask_key(self._api_key)
+
+
+# ── Embedding-specific client ────────────────────────────────────────
+
+
+class EmbeddingClient:
+    """OpenAI-compatible embeddings API client (separate from chat LLM)."""
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        retry_count: int = 3,
+        retry_delays: tuple[float, ...] = (1, 2, 4),
+        timeout: int = 60,
+    ):
+        if not api_key:
+            raise LLMError("EMBEDDING_API_KEY 未设置")
+        if not model:
+            raise LLMError("EMBEDDING_MODEL 未设置")
+
+        self._api_key = api_key
+        self._base_url = base_url
+        self._model = model
+        self._retry_count = retry_count
+        self._retry_delays = retry_delays
+        self._timeout = timeout
+
+    @property
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        url = f"{self._base_url}/embeddings"
+        body = {"model": self._model, "input": texts}
+        resp = self._request("POST", url, body)
+        return [item["embedding"] for item in resp.json()["data"]]
+
+    def _request(self, method: str, url: str, body: dict) -> requests.Response:
+        last_exc: Exception | None = None
+        for attempt in range(self._retry_count + 1):
+            try:
+                resp = requests.request(
+                    method, url, headers=self._headers, json=body, timeout=self._timeout
+                )
+                if resp.status_code < 400:
+                    return resp
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    if attempt < self._retry_count:
+                        delay = self._retry_delays[attempt]
+                        print(
+                            f"[Embed] {resp.status_code} 错误，"
+                            f"{delay}s 后重试 (第{attempt + 1}次)"
+                        )
+                        time.sleep(delay)
+                        continue
+                raise LLMError(
+                    f"Embedding API 返回 {resp.status_code}: {resp.text[:300]}",
+                    status_code=resp.status_code,
+                )
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < self._retry_count:
+                    delay = self._retry_delays[attempt]
+                    print(
+                        f"[Embed] 网络错误: {exc}，"
+                        f"{delay}s 后重试 (第{attempt + 1}次)"
+                    )
+                    time.sleep(delay)
+                else:
+                    raise LLMError(f"Embedding 网络请求失败: {exc}") from exc
+
+        raise LLMError(
+            f"Embedding 调用失败（已重试 {self._retry_count} 次）"
+        ) from last_exc
+
+
+# ── Backward-compatible module-level functions ───────────────────────
+
+_default_client: LLMClient | None = None
+
+
+def _get_default() -> LLMClient:
+    global _default_client
+    if _default_client is None:
+        from app.config import _get_settings
+        s = _get_settings()
+        _default_client = LLMClient(
+            api_key=s.llm_api_key,
+            base_url=s.llm_base_url,
+            model=s.llm_model,
         )
+    return _default_client
 
-    url = f"{EMBEDDING_BASE_URL}/embeddings"
-    headers = _build_headers(EMBEDDING_API_KEY)
-    body = {
-        "model": EMBEDDING_MODEL,
-        "input": texts,
-    }
 
-    resp = _retry_request("POST", url, headers, body)
-    data = resp.json()
-    return [item["embedding"] for item in data["data"]]
+def chat(messages: list[dict], temperature: float = 0.2) -> str:
+    """Backward-compatible shorthand.  Prefer ``LLMClient.chat()``."""
+    return _get_default().chat(messages, temperature)
+
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Backward-compatible shorthand.  Prefer ``LLMClient.embed()``."""
+    return _get_default().embed(texts)

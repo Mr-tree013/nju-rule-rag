@@ -16,11 +16,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import jieba
 from dotenv import load_dotenv
 from rank_bm25 import BM25Okapi
 
 load_dotenv()
+
+# Use the shared tokenizer so BM25 behaviour matches the online retriever.
+from app.retriever import default_tokenizer as tokenize
 
 ROOT = Path(__file__).resolve().parent.parent
 CHUNKS_FILE = ROOT / "data" / "chunks" / "chunks.jsonl"
@@ -31,12 +33,17 @@ LOOKUP_FILE = INDEX_DIR / "chunk_lookup.json"
 MANIFEST_FILE = INDEX_DIR / "manifest.json"
 CHROMA_DIR = INDEX_DIR / "chroma"
 
-ENABLE_VECTOR = os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no")
-
-# 中文 embedding 模型（sentence-transformers）。
-LOCAL_EMBEDDING_MODEL = os.getenv(
-    "LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"
-)
+# Read from Settings when available; fall back to env for standalone runs.
+try:
+    from app.config import create_settings
+    _settings = create_settings()
+    ENABLE_VECTOR = _settings.enable_vector
+    LOCAL_EMBEDDING_MODEL = _settings.local_embedding_model
+except ImportError:
+    ENABLE_VECTOR = os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no")
+    LOCAL_EMBEDDING_MODEL = os.getenv(
+        "LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"
+    )
 
 
 # ── helpers ────────────────────────────────────────────────────────
@@ -49,10 +56,6 @@ def load_chunks():
             if line:
                 chunks.append(json.loads(line))
     return chunks
-
-
-def tokenize(text):
-    return list(jieba.cut(text))
 
 
 # ── BM25 ───────────────────────────────────────────────────────────
