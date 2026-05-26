@@ -1,9 +1,0 @@
-{
-  "source_id": "nju-jw-031",
-  "input_file": "/mnt/c/Users/Mr.tree/Desktop/下载/学生注册与选课指南（中国大学MOOC平台SPOC专用）.pdf",
-  "output_file": "/mnt/c/Users/Mr.tree/Desktop/nju-rule-rag/nju-rule-rag/data/processed/南京大学-MOOC平台SPOC选课指南.md",
-  "parser": "pymupdf",
-  "text_length": 705,
-  "parsed_at": "2026-05-25 02:19:49",
-  "warning": null
-}

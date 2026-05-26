@@ -221,21 +221,37 @@ class VectorRetriever:
                 path=str(chroma_path),
                 settings=ChromaSettings(anonymized_telemetry=False),
             )
-            embedding_fn = None
-            try:
-                from chromadb.utils import embedding_functions
-                embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name=embedding_model,
-                )
-            except ImportError:
-                pass
+            self._embedding_model = self._load_embedding_model(embedding_model)
 
-            self._collection = client.get_collection(
-                self.COLLECTION, embedding_function=embedding_fn
-            )
+            self._collection = client.get_collection(self.COLLECTION)
             self._loaded = True
         except Exception as exc:
             print(f"[VectorRetriever] 加载 Chroma 失败 ({exc})，向量检索不可用。")
+
+    @staticmethod
+    def _load_embedding_model(model_name: str):
+        """Try local path first, then HuggingFace model name, then give up."""
+        from pathlib import Path as _Path
+        from sentence_transformers import SentenceTransformer
+
+        # Check for model cached locally in the project.
+        project_root = _Path(__file__).resolve().parent.parent
+        local_model = project_root / "data" / "models" / model_name.replace("/", "--")
+        # Also try without the org prefix (e.g. "text2vec-base-chinese")
+        local_short = project_root / "data" / "models" / model_name.split("/")[-1]
+
+        for candidate in (local_model, local_short):
+            if candidate.exists():
+                try:
+                    return SentenceTransformer(str(candidate), device="cpu")
+                except Exception:
+                    pass
+
+        # Fall back to HuggingFace (needs network).
+        try:
+            return SentenceTransformer(model_name, device="cpu")
+        except Exception:
+            return None
 
     @property
     def is_loaded(self) -> bool:
@@ -250,7 +266,11 @@ class VectorRetriever:
             return []
 
         try:
-            raw = self._collection.query(query_texts=[question], n_results=top_k)
+            if self._embedding_model is not None:
+                vec = self._embedding_model.encode(question).tolist()
+                raw = self._collection.query(query_embeddings=[vec], n_results=top_k)
+            else:
+                raw = self._collection.query(query_texts=[question], n_results=top_k)
             ids_list = raw.get("ids", [[]])[0]
             distances_list = raw.get("distances", [[]])[0]
 

@@ -48,6 +48,18 @@ except ImportError:
 
 # ── helpers ────────────────────────────────────────────────────────
 
+def _resolve_local_model(model_name: str) -> Path | None:
+    """Return the local path to *model_name* if cached in data/models/."""
+    short = model_name.split("/")[-1]
+    for candidate in (
+        ROOT / "data" / "models" / model_name.replace("/", "--"),
+        ROOT / "data" / "models" / short,
+    ):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def load_chunks():
     chunks = []
     with open(CHUNKS_FILE, encoding="utf-8") as f:
@@ -112,6 +124,17 @@ def build_chroma(chunks):
         print("  Cleaned old Chroma directory.")
 
     try:
+        # Load embedding model — prefer local cache, fall back to HuggingFace.
+        from sentence_transformers import SentenceTransformer
+        local_model = _resolve_local_model(LOCAL_EMBEDDING_MODEL)
+        if local_model:
+            print(f"  Loading local model from {local_model} ...")
+            embedder = SentenceTransformer(str(local_model), device="cpu")
+        else:
+            print(f"  Loading model from HuggingFace: {LOCAL_EMBEDDING_MODEL} ...")
+            embedder = SentenceTransformer(LOCAL_EMBEDDING_MODEL, device="cpu")
+        embedding_model = LOCAL_EMBEDDING_MODEL
+
         print(f"Building Chroma vector index (model: {LOCAL_EMBEDDING_MODEL})...")
         client = chromadb.PersistentClient(
             path=str(CHROMA_DIR),
@@ -119,36 +142,24 @@ def build_chroma(chunks):
         )
 
         collection_name = "nju_rules"
-
         try:
             client.delete_collection(collection_name)
         except Exception:
             pass
 
-        # Use sentence-transformers with Chinese model
-        try:
-            from chromadb.utils import embedding_functions
-            embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=LOCAL_EMBEDDING_MODEL,
-            )
-        except ImportError:
-            print("  sentence-transformers not installed, using default ONNX.")
-            embedding_fn = None
-
         collection = client.create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"},
-            embedding_function=embedding_fn,
         )
-
-        embedding_model = LOCAL_EMBEDDING_MODEL if embedding_fn else "all-MiniLM-L6-v2 (fallback)"
 
         batch_size = 50
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
+            texts = [c["content"] for c in batch]
+            vectors = embedder.encode(texts).tolist()
             collection.add(
                 ids=[c["chunk_id"] for c in batch],
-                documents=[c["content"] for c in batch],
+                embeddings=vectors,
                 metadatas=[
                     {
                         "source_id": c["source_id"],

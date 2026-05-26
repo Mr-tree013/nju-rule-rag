@@ -1,9 +1,0 @@
-{
-  "source_id": "nju-jw-027",
-  "input_file": "/mnt/c/Users/Mr.tree/Desktop/下载/南京大学本科毕业论文（设计）撰写规范、存档实施细则（试行）.doc",
-  "output_file": "/mnt/c/Users/Mr.tree/Desktop/nju-rule-rag/nju-rule-rag/data/processed/南京大学-本科毕业论文撰写规范与存档实施细则.md",
-  "parser": "libreoffice",
-  "text_length": 3391,
-  "parsed_at": "2026-05-25 02:19:48",
-  "warning": null
-}
