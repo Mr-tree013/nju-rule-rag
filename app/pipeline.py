@@ -286,15 +286,28 @@ class RAGPipeline:
 
 # ── Backward-compatible singleton ────────────────────────────────────
 
+import threading
+
 _pipeline: RAGPipeline | None = None
+_lock = threading.Lock()
 
 
 def _get_pipeline() -> RAGPipeline:
     global _pipeline
     if _pipeline is None:
-        from app.deps import create_pipeline
-        _pipeline = create_pipeline()
+        with _lock:
+            if _pipeline is None:
+                import time
+                t0 = time.time()
+                from app.deps import create_pipeline
+                _pipeline = create_pipeline()
+                print(f"[Pipeline] 初始化完成，耗时 {time.time() - t0:.1f}s")
     return _pipeline
+
+
+def preload_pipeline() -> None:
+    """Eagerly initialize the pipeline at startup (call once)."""
+    _get_pipeline()
 
 
 def answer_question(question: str) -> dict[str, Any]:

@@ -1,11 +1,9 @@
 """
 QQ Bot adapter layer.
 
-Responsibility boundary: receives messages → calls /ask → formats replies.
+Responsibility boundary: receives messages → calls pipeline → formats replies.
 Contains zero RAG, retrieval, or risk-judgment logic.
 """
-
-import requests
 
 from app.config import get_settings
 
@@ -15,19 +13,12 @@ def _settings():
 
 
 def ask_backend(question: str) -> dict | None:
-    """Call the FastAPI ``/ask`` endpoint, return the full response dict."""
-    s = _settings()
+    """Call the RAG pipeline directly (same process, no HTTP round-trip)."""
     try:
-        resp = requests.post(
-            f"{s.qq_bot_api_base_url}/ask",
-            json={"question": question},
-            timeout=s.qq_bot_request_timeout,
-        )
-        if resp.status_code == 200:
-            return resp.json()
-    except requests.RequestException:
-        pass
-    return None
+        from app.pipeline import answer_question
+        return answer_question(question)
+    except Exception:
+        return None
 
 
 def format_reply(question: str) -> str:
@@ -93,8 +84,9 @@ def handle_message(message: str) -> str:
     msg = message.strip()
 
     for prefix in ("/问 ", "/ask ", "/问", "/ask"):
-        if msg.startswith(prefix):
-            question = msg[len(prefix):].strip()
+        idx = msg.find(prefix)
+        if idx != -1:
+            question = msg[idx + len(prefix):].strip()
             if not question:
                 return "请输入问题。例如：/问 缓考怎么申请？"
             return format_reply(question)
