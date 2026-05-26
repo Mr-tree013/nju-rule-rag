@@ -218,8 +218,13 @@ def main() -> int:
     refused_count = sum(1 for r in results if r["refused"])
     avg_latency = round(sum(r["latency"] for r in results) / total, 2) if total else 0
 
-    # High-risk conservative handling: high-risk questions that were NOT refused
-    # should ideally have need_human_confirm or high actual_risk_level
+    # Normalize boolean fields from CSV strings
+    for r in results:
+        r["should_refuse"] = r.get("should_refuse") in (True, "true", "True")
+        r["refused"] = r.get("refused") in (True, "true", "True")
+        r["has_source"] = r.get("has_source") in (True, "true", "True")
+        r["keyword_hit"] = r.get("keyword_hit") in (True, "true", "True")
+
     high_should_refuse = [r for r in results if r["should_refuse"] is True]
     high_refused = sum(1 for r in high_should_refuse if r["refused"])
     high_not_refused = sum(1 for r in high_should_refuse if not r["refused"])

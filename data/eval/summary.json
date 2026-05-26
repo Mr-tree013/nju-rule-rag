@@ -1,0 +1,14 @@
+{
+  "evaluated_at": "2026-05-26 20:40:46",
+  "total_questions": 70,
+  "success_count": 70,
+  "error_count": 0,
+  "avg_latency": 2.06,
+  "has_source_ratio": 0.857,
+  "keyword_hit_ratio": 0.871,
+  "high_risk_total": 3,
+  "high_risk_refused": 2,
+  "high_risk_not_refused": 1,
+  "should_refuse_but_answered": 1,
+  "should_answer_but_refused": 8
+}

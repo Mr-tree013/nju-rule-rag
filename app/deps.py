@@ -7,7 +7,7 @@ tests and scripts can inject custom configuration.
 
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from app.config import Settings, create_settings
 from app.llm_client import LLMClient
@@ -19,7 +19,7 @@ from app.retriever import (
 )
 
 # Ensure .env is loaded before constructing Settings.
-load_dotenv()
+load_dotenv(find_dotenv())
 
 
 def _resolve(root: Path, path: str) -> Path:
