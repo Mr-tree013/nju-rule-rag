@@ -1,8 +1,8 @@
 {
-  "built_at": "2026-05-26 18:26:41",
+  "built_at": "2026-05-26 18:40:27",
   "total_chunks": 496,
-  "avg_chars": 516,
-  "avg_cn_chars": 349,
+  "avg_chars": 453,
+  "avg_cn_chars": 347,
   "min_cn_chars": 30,
   "max_cn_chars": 7360,
   "too_short_cn": 0,
