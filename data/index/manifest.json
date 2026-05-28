@@ -1,10 +1,10 @@
 {
-  "built_at": "2026-05-27 01:51:30",
+  "built_at": "2026-05-28 22:05:15",
   "chunks_file": "data/chunks/chunks.jsonl",
   "chunk_count": 3227,
   "bm25_index": "data/index/bm25.pkl",
   "chunk_lookup": "data/index/chunk_lookup.json",
   "vector_index": "data/index/chroma",
-  "embedding_model": "shibing624/text2vec-base-chinese",
+  "embedding_model": "BAAI/bge-m3",
   "status": "ok"
 }

@@ -126,13 +126,15 @@ def build_chroma(chunks):
     try:
         # Load embedding model — prefer local cache, fall back to HuggingFace.
         from sentence_transformers import SentenceTransformer
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         local_model = _resolve_local_model(LOCAL_EMBEDDING_MODEL)
         if local_model:
-            print(f"  Loading local model from {local_model} ...")
-            embedder = SentenceTransformer(str(local_model), device="cpu")
+            print(f"  Loading local model from {local_model} on {device}...")
+            embedder = SentenceTransformer(str(local_model), device=device)
         else:
-            print(f"  Loading model from HuggingFace: {LOCAL_EMBEDDING_MODEL} ...")
-            embedder = SentenceTransformer(LOCAL_EMBEDDING_MODEL, device="cpu")
+            print(f"  Loading model from HuggingFace: {LOCAL_EMBEDDING_MODEL} on {device}...")
+            embedder = SentenceTransformer(LOCAL_EMBEDDING_MODEL, device=device)
         embedding_model = LOCAL_EMBEDDING_MODEL
 
         print(f"Building Chroma vector index (model: {LOCAL_EMBEDDING_MODEL})...")
@@ -152,7 +154,7 @@ def build_chroma(chunks):
             metadata={"hnsw:space": "cosine"},
         )
 
-        batch_size = 50
+        batch_size = 8
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
             texts = [c["content"] for c in batch]
