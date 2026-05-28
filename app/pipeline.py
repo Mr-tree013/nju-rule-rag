@@ -62,6 +62,11 @@ class RAGPipeline:
         if not question or not question.strip():
             return self._empty_question_response()
 
+        # 1.5 Meta-questions — respond without retrieval
+        meta = self._handle_meta_question(question)
+        if meta:
+            return meta
+
         # 2. Classify risk
         classification = self._classify(question)
 
@@ -112,6 +117,38 @@ class RAGPipeline:
         )
 
     # ── Step methods (override in subclasses) ───────────────────
+
+    def _handle_meta_question(self, question: str) -> dict | None:
+        """Return a canned response for meta-questions, or None to proceed."""
+        q = question.strip().lower()
+        meta_patterns = {
+            ("你是谁", "你是什么", "你是干啥", "介绍自己", "自我介绍",
+             "你的名字", "叫什么", "你好", "嗨", "hi", "hello",
+             "你能干什么", "你能做什么", "你有什么功能", "你能干嘛",
+             "你可以做什么", "你会什么", "你会干啥", "你的能力",
+             "怎么用", "如何使用", "使用说明", "help", "帮助"): (
+                "我是南鉴Bot，一个专注南京大学本科校规与教务流程的问答助手。\n\n"
+                "你可以直接问我：\n"
+                "  - 选课、缓考、补考、重修的流程和条件\n"
+                "  - 转专业、辅修、休学、交换的要求\n"
+                "  - 绩点计算、学业预警、毕业学分\n"
+                "  - 宿舍、校园卡、校医院、军训等校园生活问题\n\n"
+                "直接在群里发 /问 或 /ask 加上你的问题即可。\n"
+                "注意：我只能回答校规相关的问题，不提供个人情况判断。高风险问题请务必咨询教务员。"
+            ),
+        }
+        for patterns, response in meta_patterns.items():
+            for p in patterns:
+                if p in q:
+                    return {
+                        "question": question,
+                        "answer": response,
+                        "risk_level": "low",
+                        "need_human_confirm": False,
+                        "sources": [],
+                        "debug": {"retrieval_count": 0, "latency": 0, "audit_warnings": [], "citation_warnings": [], "llm_used": None, "cached": False},
+                    }
+        return None
 
     def _classify(self, question: str) -> ClassificationResult:
         return self._classifier.classify(question)
@@ -312,17 +349,22 @@ class RAGPipeline:
         return warnings
 
     def _extract_sources(self, chunks: list[dict]) -> list[dict]:
-        return [
-            {
+        seen_titles: set[str] = set()
+        unique = []
+        for c in chunks:
+            title = c["title"]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            unique.append({
                 "chunk_id": c["chunk_id"],
                 "source_id": c.get("source_id", c["chunk_id"].rsplit("-", 1)[0]),
-                "title": c["title"],
+                "title": title,
                 "url": c.get("url", ""),
                 "priority": c.get("priority", 5),
                 "fetched_at": c.get("fetched_at", ""),
-            }
-            for c in chunks
-        ]
+            })
+        return unique[:5]
 
     def _audit_sources(self, chunks: list[dict]) -> list[str]:
         """Check reliability of retrieved chunks.  Returns warnings.
