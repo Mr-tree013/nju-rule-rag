@@ -309,3 +309,44 @@ class TestStage5Features:
         notice = t.high_risk_notice("test")
         assert "教务员" in notice
         assert "jw.nju.edu.cn" not in notice
+
+
+class TestTwoStageGeneration:
+    """Tests for the two-pass extract-then-rewrite generation."""
+
+    def test_two_stage_extracts_and_rewrites(self, mock_retriever):
+        from app.config import Settings
+
+        primary = MagicMock()
+        primary.chat.side_effect = [
+            "补考不及格需要重修\n重修需要缴纳学分学费每学分500元\n重修需在后续学年选课",  # Stage 1
+            "补考没过的话，你得重修这门课。重修要交钱，每学分500块，等下次开课重新选课就行。",  # Stage 2
+        ]
+        primary.model = "test-model"
+
+        settings = Settings(enable_two_stage_generation=True)
+        pipeline = RAGPipeline(
+            retriever=mock_retriever, llm=primary, settings=settings,
+        )
+        r = pipeline.answer("补考没过怎么办？")
+        assert "补考" in r["answer"]
+        assert r["debug"]["llm_used"] == "test-model"
+        # Should have called chat twice (extract + rewrite)
+        assert primary.chat.call_count == 2
+
+    def test_two_stage_falls_back_when_no_facts(self, mock_retriever):
+        from app.config import Settings
+
+        primary = MagicMock()
+        primary.chat.side_effect = [
+            "无相关事实",          # Stage 1: no facts
+            "抱歉，没有找到相关信息。",  # Fallback: single-pass
+        ]
+        primary.model = "test-model"
+
+        settings = Settings(enable_two_stage_generation=True)
+        pipeline = RAGPipeline(
+            retriever=mock_retriever, llm=primary, settings=settings,
+        )
+        r = pipeline.answer("火星上怎么选课？")
+        assert "抱歉" in r["answer"] or "没有找到" in r["answer"]

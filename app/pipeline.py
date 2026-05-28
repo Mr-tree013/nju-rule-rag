@@ -99,9 +99,12 @@ class RAGPipeline:
 
         # 6. Build prompt & call LLM — dedup by source, cap total
         top_chunks = self._dedup_chunks(reliable)
-        messages = self._build_prompt(question, top_chunks, classification.level, classification.is_process)
         try:
-            answer_text = self._generate(messages)
+            if self._settings.enable_two_stage_generation:
+                answer_text = self._generate_two_stage(question, top_chunks)
+            else:
+                messages = self._build_prompt(question, top_chunks, classification.level, classification.is_process)
+                answer_text = self._generate(messages)
         except LLMError:
             return self._fallback_response(question, classification, t_start, retrieval_count)
 
@@ -276,6 +279,53 @@ class RAGPipeline:
                 yield from self._fallback_llm.chat_stream(messages, temperature=0.2)
             else:
                 raise
+
+    # ── Two-stage generation ────────────────────────────────────
+
+    EXTRACT_PROMPT = """从以下校规资料中，提取与问题相关的关键事实。只提取具体信息：数字、日期、时长、金额、网址、系统名称、操作步骤、条件要求。一句话一条，不要完整段落。如果资料不包含相关信息，回复"无相关事实"。
+
+资料：
+{context}
+
+问题：{question}
+关键事实（逐条罗列）："""
+
+    REWRITE_PROMPT = """你是南大学长。用学弟学妹能听懂的大白话，把以下校规信息解释清楚。
+
+规则：
+1. 先1-2句话直接回答问题
+2. 分点列出怎么做（去哪、找谁、什么时候前、要什么材料）
+3. 禁止出现"根据规定""资料显示""校规要求"等官话
+4. 如果事实中有数字、日期、网址，必须写出来
+5. 200字以内
+
+事实信息：
+{facts}
+
+问题：{question}
+回答："""
+
+    def _generate_two_stage(self, question: str, chunks: list[dict]) -> str:
+        """Two-pass generation: extract facts → rewrite in plain language."""
+        context = self._build_context(chunks)
+        llm = self._llm
+        self._llm_used = llm.model
+
+        # Stage 1: extract key facts from chunks
+        extract_msg = [{"role": "user", "content": self.EXTRACT_PROMPT.format(
+            context=context, question=question,
+        )}]
+        facts = llm.chat(extract_msg, temperature=0.0)
+
+        if not facts.strip() or "无相关事实" in facts:
+            from app.policy import RiskLevel
+            return self._generate(self._build_prompt(question, chunks, RiskLevel.LOW, False))
+
+        # Stage 2: rewrite facts for students
+        rewrite_msg = [{"role": "user", "content": self.REWRITE_PROMPT.format(
+            facts=facts, question=question,
+        )}]
+        return llm.chat(rewrite_msg, temperature=0.3)
 
     def _format_response(
         self,
