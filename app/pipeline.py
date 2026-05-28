@@ -119,7 +119,7 @@ class RAGPipeline:
     # ── Step methods (override in subclasses) ───────────────────
 
     def _handle_meta_question(self, question: str) -> dict | None:
-        """Return a canned response for meta-questions, or None to proceed."""
+        """Return a canned response for meta-questions or irrelevant chat, or None."""
         q = question.strip().lower()
         meta_patterns = {
             ("你是谁", "你是什么", "你是干啥", "介绍自己", "自我介绍",
@@ -134,21 +134,39 @@ class RAGPipeline:
                 "  - 绩点计算、学业预警、毕业学分\n"
                 "  - 宿舍、校园卡、校医院、军训等校园生活问题\n\n"
                 "直接在群里发 /问 或 /ask 加上你的问题即可。\n"
-                "注意：我只能回答校规相关的问题，不提供个人情况判断。高风险问题请务必咨询教务员。"
+                "注意：我只能回答校规相关的问题，不提供个人情况判断。"
             ),
         }
+        # Irrelevant chat / insults / meta questions that should get a polite redirect
+        redirect_patterns = (
+            "你有智力", "你傻", "sb", "傻逼", "nm", "你懂吗",
+            "你会思考吗", "你有意识", "你聪明", "笨蛋", "废物",
+            "垃圾", "没用", "不好用", "人工智障",
+            "聊天", "无聊", "讲个笑话", "开玩笑",
+            "你是真人", "你是假的", "你是ai", "你是机器人",
+        )
         for patterns, response in meta_patterns.items():
             for p in patterns:
                 if p in q:
-                    return {
-                        "question": question,
-                        "answer": response,
-                        "risk_level": "low",
-                        "need_human_confirm": False,
-                        "sources": [],
-                        "debug": {"retrieval_count": 0, "latency": 0, "audit_warnings": [], "citation_warnings": [], "llm_used": None, "cached": False},
-                    }
+                    return self._meta_response(question, response)
+        for p in redirect_patterns:
+            if p in q:
+                return self._meta_response(
+                    question,
+                    "我是南大校规查询助手，只能回答选课、缓考、补考、学分、宿舍等校规相关问题。\n"
+                    "试试发 /问 补考没过怎么办 来了解我能做什么。"
+                )
         return None
+
+    def _meta_response(self, question: str, answer: str) -> dict:
+        return {
+            "question": question,
+            "answer": answer,
+            "risk_level": "low",
+            "need_human_confirm": False,
+            "sources": [],
+            "debug": {"retrieval_count": 0, "latency": 0, "audit_warnings": [], "citation_warnings": [], "llm_used": None, "cached": False},
+        }
 
     def _classify(self, question: str) -> ClassificationResult:
         return self._classifier.classify(question)
