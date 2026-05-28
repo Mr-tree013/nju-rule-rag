@@ -62,6 +62,44 @@ class LLMClient:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
 
+    def chat_stream(self, messages: list[dict], temperature: float = 0.2):
+        """Stream chat-completion tokens via SSE.
+
+        Yields content deltas as they arrive.  Caller must iterate the
+        generator to receive tokens.
+        """
+        url = f"{self._base_url}/chat/completions"
+        body = {
+            "model": self._model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+        resp = requests.post(
+            url, headers=self._headers, json=body,
+            timeout=self._timeout, stream=True,
+        )
+        if resp.status_code >= 400:
+            raise LLMError(
+                f"LLM stream API 返回 {resp.status_code}: {resp.text[:300]}",
+                status_code=resp.status_code,
+            )
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
+            data_str = line[6:]  # strip "data: " prefix
+            if data_str.strip() == "[DONE]":
+                break
+            try:
+                import json
+                chunk = json.loads(data_str)
+                delta = chunk["choices"][0].get("delta", {})
+                content = delta.get("content", "")
+                if content:
+                    yield content
+            except (json.JSONDecodeError, KeyError, IndexError):
+                continue
+
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Send an embeddings request and return the vector list."""
         url = f"{self._base_url}/embeddings"

@@ -275,12 +275,23 @@ class ResponseTemplates:
             "sources": [],
         }
 
-    def high_risk_notice(self, question: str) -> str:
-        return (
+    def high_risk_notice(self, question: str, departments: list[str] | None = None) -> str:
+        notice = (
             "需要提醒的是，以上信息仅供参考，不构成对个人情况的正式结论。"
             "涉及退学、开除、处分、作弊、学位等重大事项，"
             "请你务必第一时间联系所在院系教务员、辅导员或学校相关部门，获取正式处理意见。"
         )
+        if departments:
+            unique = list(dict.fromkeys(departments))[:3]  # dedup, max 3
+            notice += "\n\n相关联系方式：\n"
+            for dep in unique:
+                if dep == "本科生院":
+                    notice += "  - 本科生院: jw.nju.edu.cn | 电话 025-89680000\n"
+                elif dep == "南京大学":
+                    notice += "  - 南京大学: www.nju.edu.cn\n"
+                else:
+                    notice += f"  - {dep}\n"
+        return notice
 
     def high_risk_no_evidence(self, question: str) -> dict:
         return {

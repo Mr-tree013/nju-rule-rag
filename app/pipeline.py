@@ -94,7 +94,7 @@ class RAGPipeline:
 
         # 6. Build prompt & call LLM — dedup by source, cap total
         top_chunks = self._dedup_chunks(reliable)
-        messages = self._build_prompt(question, top_chunks, classification.level)
+        messages = self._build_prompt(question, top_chunks, classification.level, classification.is_process)
         try:
             answer_text = self._generate(messages)
         except LLMError:
@@ -160,13 +160,21 @@ class RAGPipeline:
         return result
 
     def _build_prompt(
-        self, question: str, chunks: list[dict], level: RiskLevel
+        self, question: str, chunks: list[dict], level: RiskLevel,
+        is_process: bool = False,
     ) -> list[dict[str, str]]:
         context = self._build_context(chunks)
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self._settings.system_prompt},
             {"role": "user", "content": f"【参考资料片段】\n\n{context}\n\n【用户问题】\n{question}"},
         ]
+        if is_process:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "（这是一个流程类问题。请分步骤列出操作流程，每步注明所需材料和办理入口。）",
+                }
+            )
         if level == RiskLevel.HIGH:
             messages.append(
                 {
@@ -201,6 +209,19 @@ class RAGPipeline:
                 return self._fallback_llm.chat(messages, temperature=0.2)
             raise
 
+    def _generate_stream(self, messages: list[dict]):
+        """Stream LLM tokens via SSE. Yields content fragments."""
+        try:
+            yield from self._llm.chat_stream(messages, temperature=0.2)
+            self._llm_used = self._llm.model
+        except Exception:
+            if self._fallback_llm:
+                print("[LLM] 主模型失败，切换到回退模型")
+                self._llm_used = self._fallback_llm.model
+                yield from self._fallback_llm.chat_stream(messages, temperature=0.2)
+            else:
+                raise
+
     def _format_response(
         self,
         question: str,
@@ -216,9 +237,10 @@ class RAGPipeline:
         if len(answer_text) > limit:
             answer_text = answer_text[:limit] + "..."
 
-        # High-risk notice
+        # High-risk notice (with department contacts from source metadata)
         if classification.level == RiskLevel.HIGH:
-            answer_text += "\n\n" + self._templates.high_risk_notice(question)
+            depts = [c.get("department", "") for c in chunks if c.get("department")]
+            answer_text += "\n\n" + self._templates.high_risk_notice(question, depts)
 
         # Citation warnings — prepend to answer if significant issues found
         if citation_warnings and len(citation_warnings) > 3:

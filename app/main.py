@@ -9,9 +9,12 @@ import re
 import sys
 import time
 
+import asyncio
+import json
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.config import APP_TITLE, create_settings
@@ -112,6 +115,74 @@ def ask(req: AskRequest):
                 "error": "internal_error",
             },
         )
+
+
+@app.post("/ask/stream")
+async def ask_stream(req: AskRequest):
+    """Streaming variant of /ask — SSE token-by-token generation."""
+    if not req.question or not req.question.strip():
+        return JSONResponse(status_code=400, content={"error": "Empty question"})
+
+    from app.pipeline import _get_pipeline
+
+    pipeline = _get_pipeline()
+    t_start = time.time()
+
+    # 1. Classify
+    classification = pipeline._classify(req.question)
+
+    # 2. Rewrite query (optional)
+    search_query = req.question
+    if pipeline._query_rewriter and pipeline._settings.enable_query_rewrite:
+        search_query = pipeline._rewrite_query(req.question)
+
+    # 3. Retrieve
+    try:
+        if pipeline._reranker and pipeline._settings.enable_rerank:
+            chunks = pipeline._retrieve(search_query, top_k=pipeline._settings.rerank_candidate_k)
+        else:
+            chunks = pipeline._retrieve(search_query)
+    except Exception:
+        chunks = []
+
+    retrieval_count = len(chunks)
+
+    # 4. Rerank
+    if pipeline._reranker and pipeline._settings.enable_rerank and chunks:
+        chunks = pipeline._rerank(search_query, chunks)
+
+    # 5. Filter & dedup
+    reliable = pipeline._filter_chunks(chunks, classification.level)
+    top_chunks = pipeline._dedup_chunks(reliable) if reliable else []
+
+    if not top_chunks:
+        result = pipeline._no_evidence_response(
+            req.question, classification, t_start, retrieval_count
+        )
+        return JSONResponse(content=result)
+
+    # 6. Build prompt
+    messages = pipeline._build_prompt(req.question, top_chunks, classification.level, classification.is_process)
+
+    async def generate():
+        try:
+            full_answer = ""
+            for token in pipeline._generate_stream(messages):
+                full_answer += token
+                yield f"data: {json.dumps({'token': token})}\n\n"
+                await asyncio.sleep(0)  # yield to event loop
+
+            # Format final response with sources
+            result = pipeline._format_response(
+                req.question, full_answer, classification, top_chunks,
+                t_start, retrieval_count,
+            )
+            yield f"data: {json.dumps({'done': True, 'result': result})}\n\n"
+        except Exception as exc:
+            logger.error("stream error: %s", exc)
+            yield f"data: {json.dumps({'error': str(exc)[:200]})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ── QQ Bot webhook (OneBot v11 HTTP 回调) ────────────────────────────

@@ -278,3 +278,34 @@ class TestCitationVerification:
     def test_empty_chunks_no_warnings(self, pipeline):
         warnings = pipeline._verify_citations("任何回答内容", [])
         assert warnings == []
+
+
+class TestStage5Features:
+    """Tests for Stage 5: streaming, process output, friendly fallback."""
+
+    def test_build_prompt_process_question(self, pipeline):
+        chunks = [{"title": "T", "content": "缓考流程说明", "section": "S"}]
+        msgs = pipeline._build_prompt("缓考怎么申请", chunks, RiskLevel.MEDIUM, is_process=True)
+        # Should have system + user + process hint
+        assert len(msgs) == 3
+        assert "流程" in msgs[-1]["content"]
+
+    def test_build_prompt_high_risk_and_process(self, pipeline):
+        chunks = [{"title": "T", "content": "退学流程", "section": "S"}]
+        msgs = pipeline._build_prompt("退学流程是什么", chunks, RiskLevel.HIGH, is_process=True)
+        # Should have system + user + process + high-risk
+        assert len(msgs) == 4
+
+    def test_high_risk_notice_with_departments(self):
+        from app.policy import ResponseTemplates
+        t = ResponseTemplates()
+        notice = t.high_risk_notice("test", departments=["本科生院"])
+        assert "本科生院" in notice
+        assert "jw.nju.edu.cn" in notice
+
+    def test_high_risk_notice_no_departments(self):
+        from app.policy import ResponseTemplates
+        t = ResponseTemplates()
+        notice = t.high_risk_notice("test")
+        assert "教务员" in notice
+        assert "jw.nju.edu.cn" not in notice
