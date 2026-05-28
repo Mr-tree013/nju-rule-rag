@@ -223,3 +223,32 @@ class TestRAGPipelineSteps:
         assert len(sources) == 2
         assert sources[0]["source_id"] == "a"
         assert sources[1]["priority"] == 5
+
+
+class TestTwoLayerRiskClassifier:
+    """Tests for TwoLayerRiskClassifier (keyword + embedding)."""
+
+    def test_layer1_only_works(self):
+        from app.policy import TwoLayerRiskClassifier, RiskLevel
+        c = TwoLayerRiskClassifier()
+        r = c.classify("我作弊了会被开除吗")
+        assert r.level == RiskLevel.HIGH
+        r = c.classify("补考没过怎么办")
+        assert r.level == RiskLevel.MEDIUM
+        r = c.classify("仙林校区宿舍是几人间")
+        assert r.level == RiskLevel.LOW
+
+    def test_degree_info_downgrade(self):
+        from app.policy import TwoLayerRiskClassifier, RiskLevel
+        c = TwoLayerRiskClassifier()
+        # "学位证" should be downgraded from HIGH to MEDIUM (informational)
+        r = c.classify("学位证和毕业证有什么区别")
+        assert r.level == RiskLevel.MEDIUM
+
+    def test_classification_result_is_process(self):
+        from app.policy import TwoLayerRiskClassifier
+        c = TwoLayerRiskClassifier()
+        r = c.classify("补考流程是什么")
+        assert r.is_process is True
+        r = c.classify("今天天气怎么样")
+        assert r.is_process is False

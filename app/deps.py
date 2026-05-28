@@ -122,12 +122,19 @@ def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     fallback_llm = create_fallback_llm_client(s)
     reranker = create_reranker(s)
     query_rewriter = create_query_rewriter(s, llm=llm)
+
+    # Two-layer risk classifier: keyword + embedding disambiguation
+    from app.policy import TwoLayerRiskClassifier
+    emb_model = retriever._vector.embedding_model if hasattr(retriever, '_vector') else None
+    classifier = TwoLayerRiskClassifier(embedding_model=emb_model)
+
     pipeline = RAGPipeline(
         retriever=retriever,
         llm=llm,
         fallback_llm=fallback_llm,
         reranker=reranker,
         query_rewriter=query_rewriter,
+        classifier=classifier,
         settings=s,
     )
     warnings = s.validate()

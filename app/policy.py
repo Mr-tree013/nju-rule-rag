@@ -6,6 +6,7 @@ and override the keyword tuples.  To change response wording, subclass
 ``ResponseTemplates`` and override the relevant method.
 """
 
+import numpy as np
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar
@@ -133,6 +134,119 @@ class RiskClassifier:
         if len(matched_kw) > 2 or matched_kw != "学位":
             return False
         return cls._match_any(text, cls._degree_info_phrases)
+
+
+# ── Two-layer risk classifier ─────────────────────────────────────────
+
+
+class TwoLayerRiskClassifier(RiskClassifier):
+    """Keyword-first risk classifier with embedding-based disambiguation.
+
+    Layer 1 (keywords): high-recall — catch everything that *might* be risky.
+    Layer 2 (embedding): compare question to exemplar centroids.  If the
+    keyword layer flagged HIGH but the question is semantically closer to
+    medium or informational patterns, downgrade to MEDIUM.
+
+    Reduces false positives from bare keyword hits like "学位" in "学位证有什么区别".
+    """
+
+    # Canonical exemplars — short phrases capturing the semantic profile
+    # of each risk level.  These are embedded once at init time.
+    _high_exemplars: ClassVar[list[str]] = [
+        "我作弊了会被开除吗",
+        "找人代考被发现了会怎样",
+        "被学校处分了可以申诉吗",
+        "退学之后还能重新入学吗",
+        "挂科太多会被退学吗",
+        "考试作弊处分决定在档案里留多久",
+        "毕业论文没过能毕业吗",
+        "我这种情况还能正常毕业吗",
+        "被学校劝退了怎么办",
+        "学术不端会有什么后果",
+    ]
+
+    _medium_exemplars: ClassVar[list[str]] = [
+        "缓考要怎么申请",
+        "补考没过怎么办",
+        "重修需要重新上课吗",
+        "转专业需要什么条件",
+        "辅修有什么要求",
+        "休学之后怎么复学",
+        "学业预警是什么意思",
+        "成绩出错了应该找谁",
+        "交换期间修的课怎么认定",
+        "选课冲突了怎么处理",
+    ]
+
+    _low_exemplars: ClassVar[list[str]] = [
+        "仙林校区宿舍是几人间",
+        "校园网怎么收费",
+        "学生证买火车票有优惠吗",
+        "校园卡丢了在哪里补办",
+        "军训一般什么时候",
+        "校医院怎么就诊",
+        "学位证和毕业证有什么区别",
+        "鼓楼校区怎么去",
+        "新生报到需要带什么",
+        "毕业需要多少学分",
+    ]
+
+    def __init__(self, embedding_model=None):
+        super().__init__()
+        self._embedder = embedding_model
+        self._centroids: dict[str, np.ndarray] | None = None
+        if embedding_model is not None:
+            self._build_centroids()
+
+    @property
+    def has_second_layer(self) -> bool:
+        return self._centroids is not None
+
+    def _build_centroids(self):
+        """Pre-compute centroid vectors for each risk level."""
+        if self._embedder is None:
+            return
+        self._centroids = {}
+        for level, exemplars in [
+            ("high", self._high_exemplars),
+            ("medium", self._medium_exemplars),
+            ("low", self._low_exemplars),
+        ]:
+            vectors = self._embedder.encode(exemplars)
+            self._centroids[level] = np.mean(vectors, axis=0)
+
+    def classify(self, question: str) -> ClassificationResult:
+        """Two-layer classification: keyword → embedding disambiguation."""
+        result = super().classify(question)
+
+        # Only disambiguate HIGH classifications
+        if result.level != RiskLevel.HIGH or self._centroids is None:
+            return result
+
+        try:
+            vec = self._embedder.encode([question])[0]
+            sim_high = self._cosine(vec, self._centroids["high"])
+            sim_medium = self._cosine(vec, self._centroids["medium"])
+            sim_low = self._cosine(vec, self._centroids["low"])
+
+            # Downgrade: question looks more like medium/low than high
+            if sim_high < 0.35 and (sim_medium > sim_high or sim_low > sim_high):
+                return ClassificationResult(
+                    level=RiskLevel.MEDIUM,
+                    is_process=result.is_process,
+                )
+        except Exception:
+            pass  # embedding failed — keep keyword result (safe: err on high side)
+
+        return result
+
+    @staticmethod
+    def _cosine(a: np.ndarray, b: np.ndarray) -> float:
+        na = np.linalg.norm(a)
+        nb = np.linalg.norm(b)
+        if na == 0 or nb == 0:
+            return 0.0
+        return float(np.dot(a, b) / (na * nb))
 
 
 # ── Response templates ───────────────────────────────────────────────

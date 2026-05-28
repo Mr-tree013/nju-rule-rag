@@ -258,6 +258,11 @@ class VectorRetriever:
             return None
 
     @property
+    def embedding_model(self):
+        """Expose the loaded SentenceTransformer model for downstream use."""
+        return self._embedding_model
+
+    @property
     def is_loaded(self) -> bool:
         return self._loaded
 
