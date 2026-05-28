@@ -319,6 +319,7 @@ class RAGPipeline:
                 "title": c["title"],
                 "url": c.get("url", ""),
                 "priority": c.get("priority", 5),
+                "fetched_at": c.get("fetched_at", ""),
             }
             for c in chunks
         ]

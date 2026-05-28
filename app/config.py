@@ -92,6 +92,11 @@ class Settings:
     enable_vector: bool = True
     local_embedding_model: str = "shibing624/text2vec-base-chinese"
 
+    # ── Cache ──────────────────────────────────────────────────────
+
+    cache_max_size: int = 200
+    cache_ttl: int = 3600
+
     # ── Citation verification ──────────────────────────────────────
 
     enable_citation_verify: bool = False

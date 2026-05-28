@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from app.cache import qa_cache
 from app.config import APP_TITLE, create_settings
 from app.errors import EmptyQuestionError
 from app.pipeline import answer_question, preload_pipeline
@@ -87,8 +88,16 @@ def ask(req: AskRequest):
     if not req.question or not req.question.strip():
         raise EmptyQuestionError()
 
+    # Check cache
+    cached = qa_cache.get(req.question)
+    if cached is not None:
+        cached["debug"]["cached"] = True
+        return cached
+
     try:
         result = answer_question(req.question)
+        result["debug"]["cached"] = False
+        qa_cache.set(req.question, result)
         logger.info(
             "question=%s risk=%s confirm=%s sources=%d latency=%.2f",
             req.question[:50],
@@ -183,6 +192,38 @@ async def ask_stream(req: AskRequest):
             yield f"data: {json.dumps({'error': str(exc)[:200]})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+class FeedbackRequest(BaseModel):
+    question: str
+    answer: str = ""
+    rating: str = ""  # "up" or "down"
+    comment: str = ""
+
+
+@app.post("/feedback")
+def feedback(req: FeedbackRequest):
+    """Log user feedback for eval set improvement."""
+    entry = {
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "question": req.question,
+        "answer": req.answer[:200],
+        "rating": req.rating,
+        "comment": req.comment,
+    }
+    log_path = "data/eval/feedback.jsonl"
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    logger.info("feedback rating=%s question=%.50s", req.rating, req.question)
+    return {"status": "ok", "message": "感谢反馈！"}
+
+
+@app.get("/cache/stats")
+def cache_stats():
+    return qa_cache.stats()
 
 
 # ── QQ Bot webhook (OneBot v11 HTTP 回调) ────────────────────────────
