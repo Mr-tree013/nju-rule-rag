@@ -124,15 +124,15 @@ def get_fetched_at(source_row: dict, source_id: str) -> str:
 
 # ── splitting ──────────────────────────────────────────────────────
 
-# Matches: 第X条, 一、二、, （一）（二）, ## headings, ### headings, 1. 2. 3.
+# Matches: 第X条 (with optional **bold** markers), 一、二、, （一）（二）,
+# ##/### markdown headings, and chapter markers like #### 一、总则
 HEADING_RE = re.compile(
     r"((?:^|\n)\s*(?:"
-    r"第[一二三四五六七八九十百\d]+条|"
+    r"\*{0,2}第[一二三四五六七八九十百\d]+条\*{0,2}|"
     r"[一二三四五六七八九十]+、|"
     r"（[一二三四五六七八九十]+）|"
     r"\d{1,2}\.\s|"
-    r"##\s+.+?$|"
-    r"###\s+.+?$"
+    r"#{2,4}\s+.+?$"
     r"))",
     re.MULTILINE,
 )
@@ -148,7 +148,7 @@ def split_by_article(content: str) -> list[tuple[str, str]]:
 
     preamble = parts[0].strip()
     if not is_noise(preamble):
-        chunks.append(("前言", preamble))
+        chunks.extend(_split_long("前言", preamble))
 
     for i in range(1, len(parts), 2):
         heading = parts[i].strip().lstrip("# ").strip()
@@ -236,13 +236,22 @@ def _split_long(heading: str, body: str) -> list[tuple[str, str]]:
     return result
 
 
-def _force_split(heading: str, text: str) -> list[tuple[str, str]]:
-    """If *text* still exceeds MAX_CN, split by sentence boundaries."""
-    if _count_cn(text) <= MAX_CN:
-        return [(heading, text)]
+def _force_split(heading: str, text: str, _depth: int = 0) -> list[tuple[str, str]]:
+    """If *text* still exceeds MAX_CN, split by sentence boundaries.
+
+    Falls back to fixed-size split for dense content that has no natural
+    boundaries (e.g. tables, long clauses).  *depth* guards against infinite
+    recursion when no sentence delimiter exists.
+    """
+    if _count_cn(text) <= MAX_CN or _depth > 3:
+        return [(heading, text)] if _depth <= 3 else _split_by_subheadings(heading, text)
 
     # Split on Chinese punctuation boundaries: 。；！
     sentences = re.split(r"(?<=[。；！])", text)
+    if len(sentences) <= 1:
+        # No sentence boundaries found — try sub-headings or fixed size
+        return _split_by_subheadings(heading, text)
+
     chunks = []
     buf = ""
     part = 1
@@ -255,7 +264,8 @@ def _force_split(heading: str, text: str) -> list[tuple[str, str]]:
         trial = buf + sent
         if _count_cn(trial) > TARGET_CN and buf:
             label = heading if part == 1 else f"{heading}（{part}）"
-            chunks.append((label, buf))
+            sub = _force_split(label, buf, _depth + 1)
+            chunks.extend(sub)
             buf = sent
             part += 1
         else:
@@ -263,9 +273,56 @@ def _force_split(heading: str, text: str) -> list[tuple[str, str]]:
 
     if buf:
         label = heading if part == 1 else f"{heading}（{part}）"
-        chunks.append((label, buf))
+        sub = _force_split(label, buf, _depth + 1)
+        chunks.extend(sub)
 
     return chunks if chunks else [(heading, text)]
+
+
+def _split_by_subheadings(heading: str, text: str) -> list[tuple[str, str]]:
+    """Split text by #### sub-headers as a last resort for dense content."""
+    sub_parts = re.split(r"\n(?=#{2,4}\s)", text)
+    if len(sub_parts) <= 1:
+        # No sub-headers found — fall back to fixed-size splitting
+        return _split_by_fixed_size(heading, text)
+    chunks = []
+    for part in sub_parts:
+        part = part.strip()
+        if is_noise(part):
+            continue
+        lines = part.split("\n", 1)
+        sub_heading = lines[0].lstrip("# ").strip() if lines else heading
+        sub_body = lines[1].strip() if len(lines) > 1 else part
+        if _count_cn(sub_body) > MAX_CN:
+            chunks.extend(_split_by_fixed_size(f"{heading} — {sub_heading}", sub_body))
+        else:
+            chunks.append((f"{heading} — {sub_heading}", sub_body))
+    return chunks
+
+
+def _split_by_fixed_size(heading: str, text: str) -> list[tuple[str, str]]:
+    """Brute-force split by character count for text with no natural breaks."""
+    max_chars = 600  # conservative upper bound per chunk
+    chunks = []
+    part = 1
+    while text:
+        if _count_cn(text) <= max_chars:
+            label = heading if part == 1 else f"{heading}（{part}）"
+            chunks.append((label, text))
+            break
+        # Find a split point near max_chars
+        split_at = max_chars
+        # Try to split at a sentence boundary first
+        for punct in ["。", "；", "！", "？", "\n\n", "\n"]:
+            pos = text.rfind(punct, 0, split_at)
+            if pos > max_chars // 2:
+                split_at = pos + len(punct)
+                break
+        label = heading if part == 1 else f"{heading}（{part}）"
+        chunks.append((label, text[:split_at]))
+        text = text[split_at:].strip()
+        part += 1
+    return chunks
 
 
 def _merge_short(chunks: list[dict]) -> list[dict]:

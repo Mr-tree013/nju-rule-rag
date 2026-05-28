@@ -320,7 +320,7 @@ class HybridRetriever:
     # Sources whose chunks tend to match many queries via common question words
     # (Q&A format with lots of 怎么/什么/申请/流程).  Applied as a multiplier on
     # the final hybrid score to reduce false-top-1 hits.
-    _QA_SOURCE_PENALTY: float = 0.65
+    _QA_SOURCE_PENALTY: float = 0.85  # reduced from 0.65 — BGE-M3 semantic matching is strong enough
 
     _source_boost: dict[str, float] = {}
 
