@@ -308,7 +308,9 @@ class RAGPipeline:
 
     def _generate_two_stage(self, question: str, chunks: list[dict]) -> str:
         """Two-pass generation: extract facts → rewrite in plain language."""
-        context = self._build_context(chunks)
+        # Use only top 6 chunks for extraction (large context → Ollama timeout)
+        extract_chunks = chunks[:6]
+        context = self._build_context(extract_chunks)
         llm = self._llm
         self._llm_used = llm.model
 

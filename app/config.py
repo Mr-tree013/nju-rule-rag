@@ -130,7 +130,7 @@ class Settings:
 
     retry_count: int = 3
     retry_delays: tuple = (1, 2, 4)
-    request_timeout: int = 60
+    request_timeout: int = 120
 
     # ── Pipeline ─────────────────────────────────────────────────
 
@@ -214,7 +214,7 @@ def create_settings() -> Settings:
         fallback_llm_model=os.getenv("FALLBACK_LLM_MODEL", ""),
         retry_count=3,
         retry_delays=(1, 2, 4),
-        request_timeout=60,
+        request_timeout=_int("LLM_REQUEST_TIMEOUT", 120),
         max_answer_length=600,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         qq_bot_self_id=os.getenv("QQ_BOT_SELF_ID", ""),
