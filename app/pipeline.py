@@ -1,7 +1,7 @@
 """
 RAG question-answering pipeline.
 
-Orchestrates: classify → retrieve → filter → prompt → LLM → format.
+Orchestrates: classify → retrieve → [rerank] → filter → prompt → LLM → format.
 Each step is a named method so subclasses can override individual behaviours
 without rewriting the whole flow.
 """
@@ -18,6 +18,7 @@ from app.policy import (
     RiskClassifier,
     RiskLevel,
 )
+from app.reranker import Reranker
 from app.retriever import HybridRetriever, Retriever
 
 
@@ -37,10 +38,12 @@ class RAGPipeline:
         templates: ResponseTemplates | None = None,
         settings: Settings | None = None,
         fallback_llm: LLMClient | None = None,
+        reranker: Reranker | None = None,
     ):
         self._retriever = retriever
         self._llm = llm
         self._fallback_llm = fallback_llm
+        self._reranker = reranker
         self._classifier = classifier or RiskClassifier()
         self._templates = templates or ResponseTemplates()
         self._settings = settings or Settings()
@@ -59,13 +62,20 @@ class RAGPipeline:
         # 2. Classify risk
         classification = self._classify(question)
 
-        # 3. Retrieve
+        # 3. Retrieve (larger candidate pool if reranker enabled)
         try:
-            chunks = self._retrieve(question)
+            if self._reranker and self._settings.enable_rerank:
+                chunks = self._retrieve(question, top_k=self._settings.rerank_candidate_k)
+            else:
+                chunks = self._retrieve(question)
         except Exception:
             return self._fallback_response(question, classification, t_start, retrieval_count=0)
 
         retrieval_count = len(chunks)
+
+        # 3.5 Rerank (two-stage: coarse retrieval → fine cross-encoder)
+        if self._reranker and self._settings.enable_rerank:
+            chunks = self._rerank(question, chunks)
 
         # 4. Filter by reliability
         reliable = self._filter_chunks(chunks, classification.level)
@@ -90,8 +100,13 @@ class RAGPipeline:
     def _classify(self, question: str) -> ClassificationResult:
         return self._classifier.classify(question)
 
-    def _retrieve(self, question: str) -> list[dict]:
-        return self._retriever.search(question)
+    def _retrieve(self, question: str, top_k: int | None = None) -> list[dict]:
+        return self._retriever.search(question, top_k=top_k)
+
+    def _rerank(self, question: str, chunks: list[dict]) -> list[dict]:
+        """Cross-encoder re-score and limit to rerank_top_k."""
+        assert self._reranker is not None
+        return self._reranker.rerank(question, chunks, self._settings.rerank_top_k)
 
     def _filter_chunks(self, chunks: list[dict], level: RiskLevel) -> list[dict]:
         min_score = self._settings.min_reliable_score

@@ -95,16 +95,27 @@ def create_fallback_llm_client(settings: Settings | None = None) -> LLMClient | 
     )
 
 
+def create_reranker(settings: Settings | None = None):
+    """Build a ``CrossEncoderReranker`` if enabled, else None."""
+    s = settings or _get_settings()
+    if not s.enable_rerank:
+        return None
+    from app.reranker import CrossEncoderReranker
+    return CrossEncoderReranker(model_name=s.reranker_model)
+
+
 def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     """Build a fully wired ``RAGPipeline`` ready to answer questions."""
     s = settings or _get_settings()
     retriever = create_retriever(s)
     llm = create_llm_client(s)
     fallback_llm = create_fallback_llm_client(s)
+    reranker = create_reranker(s)
     pipeline = RAGPipeline(
         retriever=retriever,
         llm=llm,
         fallback_llm=fallback_llm,
+        reranker=reranker,
         settings=s,
     )
     warnings = s.validate()

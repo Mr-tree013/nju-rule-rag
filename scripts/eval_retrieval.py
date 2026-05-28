@@ -27,14 +27,21 @@ def load_questions(path: Path) -> list[dict]:
 def compute_metrics(
     questions: list[dict],
     output_dir: Path,
+    use_reranker: bool = False,
 ) -> dict[str, Any]:
     """Run retrieval eval and return summary dict."""
     print("Loading retriever...")
     settings = create_settings()
     retriever = create_retriever(settings)
 
+    reranker = None
+    if use_reranker:
+        from app.reranker import CrossEncoderReranker
+        print("Loading reranker...")
+        reranker = CrossEncoderReranker(model_name=settings.reranker_model)
+
     k_values = [1, 3, 5, 10, 20, 40]
-    eval_top_k = 50  # retrieve many candidates for proper recall@k evaluation
+    eval_top_k = settings.rerank_candidate_k if use_reranker else 50
     total = len(questions)
     skipped = 0
 
@@ -73,6 +80,10 @@ def compute_metrics(
             precision_values.append(0.0)
             recall_values.append(0.0)
             continue
+
+        # Optional reranker pass
+        if reranker:
+            chunks = reranker.rerank(question, chunks, top_k=settings.rerank_top_k)
 
         # Extract source_ids from retrieved chunks (preserve order)
         retrieved_sources = [c.get("source_id", "") for c in chunks]
@@ -123,8 +134,8 @@ def compute_metrics(
     metrics["context_precision@10"] = avg(precision_values)
     metrics["context_recall@10"] = avg(recall_values)
 
-    # Write detailed CSV
-    results_csv = output_dir / "retrieval_results.csv"
+    suffix = "_rerank" if use_reranker else ""
+    results_csv = output_dir / f"retrieval_results{suffix}.csv"
     with open(results_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["id", "question", "gold_source_ids", "mrr"] +
@@ -150,8 +161,7 @@ def compute_metrics(
             writer.writerow(row)
             idx += 1
 
-    # Write summary JSON
-    summary_json = output_dir / "retrieval_summary.json"
+    summary_json = output_dir / f"retrieval_summary{suffix}.json"
     with open(summary_json, "w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
 
@@ -161,7 +171,9 @@ def compute_metrics(
 
 
 def main() -> int:
-    output_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "eval"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    use_reranker = "--rerank" in sys.argv
+    output_dir = Path(args[0]) if args else ROOT / "data" / "eval"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     questions_path = ROOT / "data" / "eval" / "questions.csv"
@@ -171,8 +183,10 @@ def main() -> int:
 
     questions = load_questions(questions_path)
     print(f"Loaded {len(questions)} questions")
+    if use_reranker:
+        print("Reranker: ENABLED")
 
-    metrics = compute_metrics(questions, output_dir)
+    metrics = compute_metrics(questions, output_dir, use_reranker=use_reranker)
 
     print()
     print("─" * 50)

@@ -112,6 +112,24 @@ class TestRAGPipelineAnswer:
         r = pipeline.answer("缓考怎么申请？")
         assert r["debug"]["llm_used"] == "my-primary-model"
 
+    def test_reranker_invoked_when_present(self, mock_retriever, mock_llm):
+        """When reranker is configured and enabled, it should be called."""
+        from app.config import Settings
+
+        reranker = MagicMock()
+        reranker.rerank.return_value = mock_retriever.search.return_value[:3]
+
+        settings = Settings(enable_rerank=True, rerank_candidate_k=20, rerank_top_k=5)
+        pipeline = RAGPipeline(
+            retriever=mock_retriever,
+            llm=mock_llm,
+            reranker=reranker,
+            settings=settings,
+        )
+        r = pipeline.answer("缓考怎么申请？")
+        assert reranker.rerank.called
+        assert "缓考" in r["answer"]
+
     def test_high_risk_stricter_filter(self, pipeline, mock_retriever):
         """High-risk questions require HIGH_RISK_MIN_SCORE (0.25)."""
         mock_retriever.search.return_value = [

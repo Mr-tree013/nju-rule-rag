@@ -381,8 +381,8 @@ class HybridRetriever:
         if not question or not question.strip():
             return []
 
-        bm25_raw = self._bm25.search(question, top_k=10)
-        vector_raw = self._vector.search(question, top_k=10)
+        bm25_raw = self._bm25.search(question, top_k=k)
+        vector_raw = self._vector.search(question, top_k=k)
 
         use_bm25 = len(bm25_raw) > 0
         use_vector = len(vector_raw) > 0

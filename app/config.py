@@ -92,6 +92,13 @@ class Settings:
     enable_vector: bool = True
     local_embedding_model: str = "shibing624/text2vec-base-chinese"
 
+    # ── Reranker ──────────────────────────────────────────────────
+
+    enable_rerank: bool = False
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_candidate_k: int = 40
+    rerank_top_k: int = 12
+
     # ── LLM fallback ─────────────────────────────────────────────
 
     enable_llm_fallback: bool = False
@@ -174,6 +181,10 @@ def create_settings() -> Settings:
         high_risk_min_score=_float("HIGH_RISK_MIN_SCORE", 0.25),
         enable_vector=os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no"),
         local_embedding_model=os.getenv("LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"),
+        enable_rerank=os.getenv("ENABLE_RERANK", "false").lower() in ("true", "1", "yes"),
+        reranker_model=os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
+        rerank_candidate_k=_int("RERANK_CANDIDATE_K", 40),
+        rerank_top_k=_int("RERANK_TOP_K", 12),
         enable_llm_fallback=os.getenv("ENABLE_LLM_FALLBACK", "false").lower() in ("true", "1", "yes"),
         fallback_llm_api_key=os.getenv("FALLBACK_LLM_API_KEY", ""),
         fallback_llm_base_url=os.getenv("FALLBACK_LLM_BASE_URL", ""),
