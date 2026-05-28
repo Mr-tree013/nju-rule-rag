@@ -31,6 +31,7 @@ def mock_retriever():
 def mock_llm():
     llm = MagicMock()
     llm.chat.return_value = "缓考需要在考试前通过网上办事服务大厅申请。"
+    llm.model = "mock-model"
     return llm
 
 
@@ -87,6 +88,29 @@ class TestRAGPipelineAnswer:
         r = pipeline.answer("缓考怎么申请？")
         assert "系统暂时不可用" in r["answer"]
         assert r["need_human_confirm"] is True
+
+    def test_llm_fallback_to_secondary(self, mock_retriever, mock_llm):
+        """When primary fails and fallback is configured, use fallback."""
+        fallback = MagicMock()
+        fallback.chat.return_value = "来自回退模型的回答。"
+        fallback.model = "fallback-model"
+
+        pipeline = RAGPipeline(
+            retriever=mock_retriever,
+            llm=mock_llm,
+            fallback_llm=fallback,
+            settings=Settings(),
+        )
+        mock_llm.chat.side_effect = LLMError("Primary timeout")
+        r = pipeline.answer("缓考怎么申请？")
+        assert r["answer"] == "来自回退模型的回答。"
+        assert r["debug"]["llm_used"] == "fallback-model"
+
+    def test_llm_used_tracks_primary(self, pipeline, mock_llm):
+        """debug.llm_used should be set to primary model name."""
+        mock_llm.model = "my-primary-model"
+        r = pipeline.answer("缓考怎么申请？")
+        assert r["debug"]["llm_used"] == "my-primary-model"
 
     def test_high_risk_stricter_filter(self, pipeline, mock_retriever):
         """High-risk questions require HIGH_RISK_MIN_SCORE (0.25)."""

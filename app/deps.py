@@ -78,12 +78,35 @@ def create_llm_client(settings: Settings | None = None) -> LLMClient:
     )
 
 
+def create_fallback_llm_client(settings: Settings | None = None) -> LLMClient | None:
+    """Build a fallback ``LLMClient`` if fallback is configured, else None."""
+    s = settings or _get_settings()
+    if not s.enable_llm_fallback:
+        return None
+    if not s.fallback_llm_api_key or not s.fallback_llm_model:
+        return None
+    return LLMClient(
+        api_key=s.fallback_llm_api_key,
+        base_url=s.fallback_llm_base_url,
+        model=s.fallback_llm_model,
+        retry_count=s.retry_count,
+        retry_delays=s.retry_delays,
+        timeout=s.request_timeout,
+    )
+
+
 def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     """Build a fully wired ``RAGPipeline`` ready to answer questions."""
     s = settings or _get_settings()
     retriever = create_retriever(s)
     llm = create_llm_client(s)
-    pipeline = RAGPipeline(retriever=retriever, llm=llm, settings=s)
+    fallback_llm = create_fallback_llm_client(s)
+    pipeline = RAGPipeline(
+        retriever=retriever,
+        llm=llm,
+        fallback_llm=fallback_llm,
+        settings=s,
+    )
     warnings = s.validate()
     if warnings:
         print("[Config] 警告:")

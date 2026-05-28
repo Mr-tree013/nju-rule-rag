@@ -1,9 +1,9 @@
 {
-  "evaluated_at": "2026-05-28 20:35:06",
+  "evaluated_at": "2026-05-28 20:12:28",
   "total_questions": 70,
   "success_count": 70,
   "error_count": 0,
-  "avg_latency": 1.56,
+  "avg_latency": 1.58,
   "has_source_ratio": 0.986,
   "keyword_hit_ratio": 0.929,
   "high_risk_total": 2,

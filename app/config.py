@@ -92,6 +92,13 @@ class Settings:
     enable_vector: bool = True
     local_embedding_model: str = "shibing624/text2vec-base-chinese"
 
+    # ── LLM fallback ─────────────────────────────────────────────
+
+    enable_llm_fallback: bool = False
+    fallback_llm_api_key: str = ""
+    fallback_llm_base_url: str = ""
+    fallback_llm_model: str = ""
+
     # ── LLM retry ────────────────────────────────────────────────
 
     retry_count: int = 3
@@ -167,6 +174,10 @@ def create_settings() -> Settings:
         high_risk_min_score=_float("HIGH_RISK_MIN_SCORE", 0.25),
         enable_vector=os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no"),
         local_embedding_model=os.getenv("LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"),
+        enable_llm_fallback=os.getenv("ENABLE_LLM_FALLBACK", "false").lower() in ("true", "1", "yes"),
+        fallback_llm_api_key=os.getenv("FALLBACK_LLM_API_KEY", ""),
+        fallback_llm_base_url=os.getenv("FALLBACK_LLM_BASE_URL", ""),
+        fallback_llm_model=os.getenv("FALLBACK_LLM_MODEL", ""),
         retry_count=3,
         retry_delays=(1, 2, 4),
         request_timeout=60,

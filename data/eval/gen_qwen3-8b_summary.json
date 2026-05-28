@@ -1,0 +1,13 @@
+{
+  "evaluated_at": "2026-05-28 20:30:49",
+  "judge_model": "qwen3:8b-nothink",
+  "results_file": "data/eval/results_qwen3-8b.csv",
+  "total_answers": 70,
+  "judged": 70,
+  "success": 70,
+  "errors": 0,
+  "avg_faithfulness": 2.66,
+  "avg_relevance": 4.14,
+  "avg_refusal_correctness": 4.74,
+  "overall_score": 3.85
+}

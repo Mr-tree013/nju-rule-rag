@@ -36,9 +36,11 @@ class RAGPipeline:
         classifier: RiskClassifier | None = None,
         templates: ResponseTemplates | None = None,
         settings: Settings | None = None,
+        fallback_llm: LLMClient | None = None,
     ):
         self._retriever = retriever
         self._llm = llm
+        self._fallback_llm = fallback_llm
         self._classifier = classifier or RiskClassifier()
         self._templates = templates or ResponseTemplates()
         self._settings = settings or Settings()
@@ -48,6 +50,7 @@ class RAGPipeline:
     def answer(self, question: str) -> dict[str, Any]:
         """Run the full pipeline and return the ``/ask`` response dict."""
         t_start = time.time()
+        self._llm_used: str | None = None
 
         # 1. Validate input
         if not question or not question.strip():
@@ -146,7 +149,17 @@ class RAGPipeline:
         return "\n\n---\n\n".join(parts)
 
     def _generate(self, messages: list[dict]) -> str:
-        return self._llm.chat(messages, temperature=0.2)
+        """Call primary LLM; fall back to secondary on failure."""
+        try:
+            result = self._llm.chat(messages, temperature=0.2)
+            self._llm_used = self._llm.model
+            return result
+        except LLMError:
+            if self._fallback_llm:
+                print("[LLM] 主模型失败，切换到回退模型")
+                self._llm_used = self._fallback_llm.model
+                return self._fallback_llm.chat(messages, temperature=0.2)
+            raise
 
     def _format_response(
         self,
@@ -182,6 +195,7 @@ class RAGPipeline:
                 "retrieval_count": retrieval_count,
                 "latency": latency,
                 "audit_warnings": audit,
+                "llm_used": getattr(self, "_llm_used", None),
             },
         }
 

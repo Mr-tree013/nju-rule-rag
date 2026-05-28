@@ -15,8 +15,15 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 QUESTIONS_CSV = ROOT / "data" / "eval" / "questions.csv"
-RESULTS_CSV = ROOT / "data" / "eval" / "results.csv"
-SUMMARY_JSON = ROOT / "data" / "eval" / "summary.json"
+
+
+def get_output_paths(prefix: str = "") -> tuple[Path, Path]:
+    """Return (results_csv, summary_json) with optional prefix."""
+    suffix = f"_{prefix}" if prefix else ""
+    return (
+        ROOT / "data" / "eval" / f"results{suffix}.csv",
+        ROOT / "data" / "eval" / f"summary{suffix}.json",
+    )
 
 ASK_URL = "http://127.0.0.1:8000/ask"
 REQUEST_TIMEOUT = 60  # seconds
@@ -66,6 +73,9 @@ def keyword_hit(expected_keywords: str, answer: str, sources: list) -> bool:
 # ── main ───────────────────────────────────────────────────────────
 
 def main() -> int:
+    prefix = sys.argv[1] if len(sys.argv) > 1 else ""
+    RESULTS_CSV, SUMMARY_JSON = get_output_paths(prefix)
+
     if not QUESTIONS_CSV.exists():
         print(f"Error: {QUESTIONS_CSV} not found.", file=sys.stderr)
         return 1
