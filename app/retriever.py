@@ -234,6 +234,9 @@ class VectorRetriever:
         """Try local path first, then HuggingFace model name, then give up."""
         from pathlib import Path as _Path
         from sentence_transformers import SentenceTransformer
+        import torch
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Check for model cached locally in the project.
         project_root = _Path(__file__).resolve().parent.parent
@@ -244,13 +247,13 @@ class VectorRetriever:
         for candidate in (local_model, local_short):
             if candidate.exists():
                 try:
-                    return SentenceTransformer(str(candidate), device="cpu")
+                    return SentenceTransformer(str(candidate), device=device)
                 except Exception:
                     pass
 
         # Fall back to HuggingFace (needs network).
         try:
-            return SentenceTransformer(model_name, device="cpu")
+            return SentenceTransformer(model_name, device=device)
         except Exception:
             return None
 
