@@ -252,3 +252,29 @@ class TestTwoLayerRiskClassifier:
         assert r.is_process is True
         r = c.classify("今天天气怎么样")
         assert r.is_process is False
+
+
+class TestCitationVerification:
+    """Tests for _verify_citations guardrail."""
+
+    def test_supported_claims_no_warnings(self, pipeline):
+        answer = "补考需要在考试后两周内通过教务系统申请。"
+        chunks = [
+            {"content": "学生应在考试结束后两周内通过教务系统提交补考申请。"},
+        ]
+        warnings = pipeline._verify_citations(answer, chunks)
+        assert len(warnings) == 0
+
+    def test_unsupported_claim_flagged(self, pipeline):
+        # Source is about 补考流程, answer hallucinates about 宿舍电器
+        answer = "根据校规，宿舍可以使用电饭煲和电磁炉。"
+        chunks = [
+            {"content": "补考由学生本人在教务系统中提交申请，补考不及格需要重修。"},
+        ]
+        warnings = pipeline._verify_citations(answer, chunks)
+        # No overlap between "宿舍/电饭煲/电磁炉" and "补考/重修/教务系统"
+        assert len(warnings) > 0
+
+    def test_empty_chunks_no_warnings(self, pipeline):
+        warnings = pipeline._verify_citations("任何回答内容", [])
+        assert warnings == []

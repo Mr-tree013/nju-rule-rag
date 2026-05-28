@@ -92,6 +92,10 @@ class Settings:
     enable_vector: bool = True
     local_embedding_model: str = "shibing624/text2vec-base-chinese"
 
+    # ── Citation verification ──────────────────────────────────────
+
+    enable_citation_verify: bool = False
+
     # ── Query rewriting ────────────────────────────────────────────
 
     enable_query_rewrite: bool = False
@@ -185,6 +189,7 @@ def create_settings() -> Settings:
         high_risk_min_score=_float("HIGH_RISK_MIN_SCORE", 0.25),
         enable_vector=os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no"),
         local_embedding_model=os.getenv("LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"),
+        enable_citation_verify=os.getenv("ENABLE_CITATION_VERIFY", "false").lower() in ("true", "1", "yes"),
         enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", "false").lower() in ("true", "1", "yes"),
         enable_rerank=os.getenv("ENABLE_RERANK", "false").lower() in ("true", "1", "yes"),
         reranker_model=os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),

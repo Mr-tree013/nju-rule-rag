@@ -100,8 +100,16 @@ class RAGPipeline:
         except LLMError:
             return self._fallback_response(question, classification, t_start, retrieval_count)
 
-        # 7. Format final response
-        return self._format_response(question, answer_text, classification, top_chunks, t_start, retrieval_count)
+        # 7. Verify citations (optional guardrail)
+        citation_warnings: list[str] = []
+        if self._settings.enable_citation_verify:
+            citation_warnings = self._verify_citations(answer_text, top_chunks)
+
+        # 8. Format final response
+        return self._format_response(
+            question, answer_text, classification, top_chunks,
+            t_start, retrieval_count, citation_warnings,
+        )
 
     # ── Step methods (override in subclasses) ───────────────────
 
@@ -201,6 +209,7 @@ class RAGPipeline:
         chunks: list[dict],
         t_start: float,
         retrieval_count: int,
+        citation_warnings: list[str] | None = None,
     ) -> dict[str, Any]:
         # Length cap
         limit = self._settings.max_answer_length
@@ -210,6 +219,10 @@ class RAGPipeline:
         # High-risk notice
         if classification.level == RiskLevel.HIGH:
             answer_text += "\n\n" + self._templates.high_risk_notice(question)
+
+        # Citation warnings — prepend to answer if significant issues found
+        if citation_warnings and len(citation_warnings) > 3:
+            answer_text = "⚠️ 以下回答可能缺乏足够的来源支撑，请谨慎参考：\n\n" + answer_text
 
         sources = self._extract_sources(chunks[:5])
         audit = self._audit_sources(chunks[:5])
@@ -227,11 +240,54 @@ class RAGPipeline:
                 "retrieval_count": retrieval_count,
                 "latency": latency,
                 "audit_warnings": audit,
+                "citation_warnings": citation_warnings or [],
                 "llm_used": getattr(self, "_llm_used", None),
             },
         }
 
     # ── Helpers ─────────────────────────────────────────────────
+
+    def _verify_citations(self, answer: str, chunks: list[dict]) -> list[str]:
+        """Lightweight check: do answer claims have source support?
+
+        Splits the answer into sentence-level claims and checks token overlap
+        with cited chunk content.  Returns a list of warning strings — empty
+        means all claims are reasonably grounded.
+        """
+        import re
+        sentences = re.split(r"[。！？\n]", answer)
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 8]
+
+        if not sentences or not chunks:
+            return []
+
+        # Build a token set for all cited chunks
+        source_tokens: set[str] = set()
+        for c in chunks:
+            content = c.get("content", "")
+            # Simple character bigram tokenization for Chinese
+            for i in range(len(content) - 1):
+                source_tokens.add(content[i:i + 2])
+
+        warnings = []
+        unsupported = 0
+        for sent in sentences:
+            sent_tokens: set[str] = set()
+            for i in range(len(sent) - 1):
+                sent_tokens.add(sent[i:i + 2])
+            if not sent_tokens:
+                continue
+            overlap = len(sent_tokens & source_tokens) / len(sent_tokens)
+            if overlap < 0.1:  # less than 10% token overlap
+                unsupported += 1
+                warnings.append(f"可能缺乏来源支撑: {sent[:50]}...")
+
+        if unsupported > len(sentences) * 0.5:
+            warnings.append(
+                "注意：多条回答内容与检索到的来源匹配度较低，建议核实"
+            )
+
+        return warnings
 
     def _extract_sources(self, chunks: list[dict]) -> list[dict]:
         return [
@@ -282,7 +338,7 @@ class RAGPipeline:
             "risk_level": "low",
             "need_human_confirm": False,
             "sources": [],
-            "debug": {"retrieval_count": 0, "latency": 0},
+            "debug": {"retrieval_count": 0, "latency": 0, "citation_warnings": []},
         }
 
     def _no_evidence_response(
@@ -305,6 +361,7 @@ class RAGPipeline:
             "retrieval_count": retrieval_count,
             "latency": latency,
             "audit_warnings": [],
+            "citation_warnings": [],
         }
         return result
 
@@ -326,6 +383,7 @@ class RAGPipeline:
                 "retrieval_count": retrieval_count,
                 "latency": latency,
                 "audit_warnings": [],
+                "citation_warnings": [],
             },
         }
 
