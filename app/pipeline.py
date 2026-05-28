@@ -142,11 +142,12 @@ class RAGPipeline:
         }
         # Irrelevant chat / insults / meta questions that should get a polite redirect
         redirect_patterns = (
-            "你有智力", "你傻", "sb", "傻逼", "nm", "你懂吗",
+            "你有智力", "你傻", "sb", "傻逼", "傻b", "nm", "你懂吗",
             "你会思考吗", "你有意识", "你聪明", "笨蛋", "废物",
             "垃圾", "没用", "不好用", "人工智障",
             "聊天", "无聊", "讲个笑话", "开玩笑",
             "你是真人", "你是假的", "你是ai", "你是机器人",
+            "介绍你自己", "介绍下自己",
         )
         for patterns, response in meta_patterns.items():
             for p in patterns:

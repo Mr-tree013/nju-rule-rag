@@ -8,12 +8,15 @@ genuinely colloquial queries — formal questions pass through as-is.
 
 # Colloquial patterns that indicate a query needs rewriting
 COLLOQUIAL_PATTERNS = [
-    "咋办", "咋整", "咋搞", "能行吗", "可以不", "可以不", "ok吗",
+    "咋办", "咋整", "咋搞", "能行吗", "可以不", "ok吗",
     "啥时候", "咋弄", "咋申请", "咋退", "咋改",
     "能补吗", "能退吗", "能转吗", "能改吗",
     "挂科", "翘课", "旷课", "逃课",
     "行不行", "好不好", "可不可以",
     "那它", "那这", "这个呢", "那个呢",
+    "要多久", "要多长", "多长时间", "多久做完",
+    "怎么弄", "怎么搞", "怎么做", "怎么申请",
+    "要什么", "需要什么", "要哪些",
 ]
 
 COLLOQUIAL_SHORT_MAX = 6  # only rewrite very short/ambiguous fragments
