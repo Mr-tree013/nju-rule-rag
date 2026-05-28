@@ -5,6 +5,8 @@ Responsibility boundary: receives messages → calls pipeline → formats replie
 Contains zero RAG, retrieval, or risk-judgment logic.
 """
 
+import re
+
 from app.config import get_settings
 
 
@@ -21,19 +23,35 @@ def ask_backend(question: str) -> dict | None:
         return None
 
 
+def _strip_markdown(text: str) -> str:
+    """Remove markdown formatting for plain-text QQ group display."""
+    # Remove bold/italic markers
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    # Remove heading markers
+    text = re.sub(r"^#{1,4}\s+", "", text, flags=re.MULTILINE)
+    # Remove backtick code
+    text = re.sub(r"`(.+?)`", r"\1", text)
+    # Remove horizontal rules
+    text = re.sub(r"^[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
+    # Collapse excessive blank lines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def format_reply(question: str) -> str:
     """
-    Convert a user question into a QQ-group-friendly reply.
+    Convert a user question into a QQ-group-friendly plain-text reply.
 
     Format::
 
-        【结论】
+        结论
         ...（up to max_reply_length chars）
 
-        【依据】
-        1. 《来源标题》
+        依据
+        1. 来源标题
 
-        【提醒】
+        提醒
         ...（only for high-risk）
     """
     s = _settings()
@@ -42,24 +60,24 @@ def format_reply(question: str) -> str:
     if data is None:
         return "系统暂时不可用，请稍后再试。"
 
-    answer = data.get("answer", "").strip()
+    answer = _strip_markdown(data.get("answer", "").strip())
     sources = data.get("sources", [])
     risk_level = data.get("risk_level", "")
 
     if data.get("error") == "internal_error" or risk_level == "unknown":
         return "系统暂时不可用，请稍后再试。"
 
-    lines = ["【结论】", answer, ""]
+    lines = ["结论", answer, ""]
 
     if sources:
-        lines.append("【依据】")
+        lines.append("依据")
         for i, src in enumerate(sources, 1):
             title = src.get("title", "未知来源")
-            lines.append(f"{i}. 《{title}》")
+            lines.append(f"{i}. {title}")
         lines.append("")
 
     if risk_level == "high":
-        lines.append("【提醒】")
+        lines.append("提醒")
         lines.append(
             "以上信息仅供参考，不构成对个人情况的正式结论。"
             "涉及重大事项，请务必联系院系教务员或辅导员获取正式处理意见。"
@@ -76,23 +94,21 @@ def format_reply(question: str) -> str:
 
 def handle_message(message: str) -> str:
     """
-    QQ Bot message handler entry point.
-
-    Recognises ``/问`` or ``/ask`` prefixes, extracts the question,
-    and returns a formatted reply.  All other messages receive a usage hint.
+    QQ Bot message handler.  Extracts the question from the message and
+    returns a formatted reply.  Strips /ask and /问 command prefixes if
+    present; otherwise treats the whole message as the question.
     """
     msg = message.strip()
+    if not msg:
+        return ""
 
-    for prefix in ("/问 ", "/ask ", "/问", "/ask"):
-        idx = msg.find(prefix)
-        if idx != -1:
-            question = msg[idx + len(prefix):].strip()
-            if not question:
-                return "请输入问题。例如：/问 缓考怎么申请？"
-            return format_reply(question)
+    # Strip optional command prefix
+    for prefix in ("/ask ", "/问 ", "/ask", "/问"):
+        if msg.startswith(prefix):
+            msg = msg[len(prefix):].strip()
+            break
 
-    return (
-        "欢迎使用 NJU Rule RAG Bot！\n"
-        "发送 /问 + 你的问题 即可查询校规。\n"
-        "例如：/问 缓考怎么申请？"
-    )
+    if not msg:
+        return ""
+
+    return format_reply(msg)

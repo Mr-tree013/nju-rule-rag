@@ -243,14 +243,13 @@ def qq_webhook(data: dict):
     raw = data.get("raw_message", "")
 
     text = _RE_CQ.sub("", raw).strip()
-
-    # Only respond to /问 or /ask commands (ignore casual chat)
-    has_cmd = "/问" in text or "/ask" in text
-    if not has_cmd:
+    if not text:
         return {"reply": ""}
 
     logger.info("qq_webhook processing text=%.200s", text)
     reply = handle_message(text)
+    if not reply:
+        return {"reply": ""}
     logger.info("qq_webhook reply=%.100s elapsed=%.1fs", reply, time.time() - t0)
     return {"reply": reply}
 
