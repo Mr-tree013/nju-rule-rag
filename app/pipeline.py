@@ -433,8 +433,17 @@ def _get_pipeline() -> RAGPipeline:
 
 
 def preload_pipeline() -> None:
-    """Eagerly initialize the pipeline at startup (call once)."""
-    _get_pipeline()
+    """Eagerly initialize the pipeline at startup (call once).
+
+    Sends a warmup query to force all lazy-loaded models (embedding,
+    reranker, LLM) to load into GPU memory before the first real request.
+    """
+    p = _get_pipeline()
+    try:
+        p.answer("预热")  # triggers _retrieve → _rerank → _generate
+        print("[Pipeline] 预热完成，所有模型已加载。")
+    except Exception:
+        pass
 
 
 def answer_question(question: str) -> dict[str, Any]:
