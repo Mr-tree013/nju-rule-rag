@@ -242,6 +242,12 @@ def qq_webhook(data: dict):
 
     raw = data.get("raw_message", "")
 
+    # Only respond when @mentioned
+    self_id = str(create_settings().qq_bot_self_id)
+    is_mentioned = f"[CQ:at,qq={self_id}]" in raw
+    if not is_mentioned and "/ask" not in raw and "/问" not in raw:
+        return {"reply": ""}
+
     text = _RE_CQ.sub("", raw).strip()
     if not text:
         return {"reply": ""}
