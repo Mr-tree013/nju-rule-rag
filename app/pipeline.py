@@ -18,6 +18,7 @@ from app.policy import (
     RiskClassifier,
     RiskLevel,
 )
+from app.query_rewriter import QueryRewriter
 from app.reranker import Reranker
 from app.retriever import HybridRetriever, Retriever
 
@@ -39,11 +40,13 @@ class RAGPipeline:
         settings: Settings | None = None,
         fallback_llm: LLMClient | None = None,
         reranker: Reranker | None = None,
+        query_rewriter: QueryRewriter | None = None,
     ):
         self._retriever = retriever
         self._llm = llm
         self._fallback_llm = fallback_llm
         self._reranker = reranker
+        self._query_rewriter = query_rewriter
         self._classifier = classifier or RiskClassifier()
         self._templates = templates or ResponseTemplates()
         self._settings = settings or Settings()
@@ -62,12 +65,17 @@ class RAGPipeline:
         # 2. Classify risk
         classification = self._classify(question)
 
+        # 2.5 Rewrite query (optional — normalise colloquial → formal)
+        search_query = question
+        if self._query_rewriter and self._settings.enable_query_rewrite:
+            search_query = self._rewrite_query(question)
+
         # 3. Retrieve (larger candidate pool if reranker enabled)
         try:
             if self._reranker and self._settings.enable_rerank:
-                chunks = self._retrieve(question, top_k=self._settings.rerank_candidate_k)
+                chunks = self._retrieve(search_query, top_k=self._settings.rerank_candidate_k)
             else:
-                chunks = self._retrieve(question)
+                chunks = self._retrieve(search_query)
         except Exception:
             return self._fallback_response(question, classification, t_start, retrieval_count=0)
 
@@ -75,7 +83,7 @@ class RAGPipeline:
 
         # 3.5 Rerank (two-stage: coarse retrieval → fine cross-encoder)
         if self._reranker and self._settings.enable_rerank:
-            chunks = self._rerank(question, chunks)
+            chunks = self._rerank(search_query, chunks)
 
         # 4. Filter by reliability
         reliable = self._filter_chunks(chunks, classification.level)
@@ -99,6 +107,15 @@ class RAGPipeline:
 
     def _classify(self, question: str) -> ClassificationResult:
         return self._classifier.classify(question)
+
+    def _rewrite_query(self, question: str) -> str:
+        """Normalise colloquial student questions for retrieval."""
+        assert self._query_rewriter is not None
+        rewritten = self._query_rewriter.rewrite(question)
+        if rewritten and rewritten != question:
+            self._rewritten_query = rewritten
+            return rewritten
+        return question
 
     def _retrieve(self, question: str, top_k: int | None = None) -> list[dict]:
         return self._retriever.search(question, top_k=top_k)

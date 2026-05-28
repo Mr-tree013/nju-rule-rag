@@ -28,11 +28,24 @@ def compute_metrics(
     questions: list[dict],
     output_dir: Path,
     use_reranker: bool = False,
+    use_rewrite: bool = False,
 ) -> dict[str, Any]:
     """Run retrieval eval and return summary dict."""
     print("Loading retriever...")
     settings = create_settings()
     retriever = create_retriever(settings)
+
+    rewriter = None
+    if use_rewrite:
+        from app.query_rewriter import QueryRewriter
+        from app.llm_client import LLMClient
+        print("Loading query rewriter...")
+        llm = LLMClient(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+        )
+        rewriter = QueryRewriter(llm)
 
     reranker = None
     if use_reranker:
@@ -69,9 +82,14 @@ def compute_metrics(
             skipped += 1
             continue
 
+        # Optional query rewrite
+        search_query = question
+        if rewriter:
+            search_query = rewriter.rewrite(question)
+
         # Retrieve with larger candidate pool for proper eval
         try:
-            chunks = retriever.search(question, top_k=eval_top_k)
+            chunks = retriever.search(search_query, top_k=eval_top_k)
         except Exception as exc:
             print(f"  [{qid}] retrieval error: {exc}")
             for k in k_values:
@@ -83,7 +101,7 @@ def compute_metrics(
 
         # Optional reranker pass
         if reranker:
-            chunks = reranker.rerank(question, chunks, top_k=settings.rerank_top_k)
+            chunks = reranker.rerank(search_query, chunks, top_k=settings.rerank_top_k)
 
         # Extract source_ids from retrieved chunks (preserve order)
         retrieved_sources = [c.get("source_id", "") for c in chunks]
@@ -134,7 +152,11 @@ def compute_metrics(
     metrics["context_precision@10"] = avg(precision_values)
     metrics["context_recall@10"] = avg(recall_values)
 
-    suffix = "_rerank" if use_reranker else ""
+    suffix = ""
+    if use_rewrite:
+        suffix += "_rewrite"
+    if use_reranker:
+        suffix += "_rerank"
     results_csv = output_dir / f"retrieval_results{suffix}.csv"
     with open(results_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -173,6 +195,7 @@ def compute_metrics(
 def main() -> int:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     use_reranker = "--rerank" in sys.argv
+    use_rewrite = "--rewrite" in sys.argv
     output_dir = Path(args[0]) if args else ROOT / "data" / "eval"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -185,8 +208,10 @@ def main() -> int:
     print(f"Loaded {len(questions)} questions")
     if use_reranker:
         print("Reranker: ENABLED")
+    if use_rewrite:
+        print("Query Rewrite: ENABLED")
 
-    metrics = compute_metrics(questions, output_dir, use_reranker=use_reranker)
+    metrics = compute_metrics(questions, output_dir, use_reranker=use_reranker, use_rewrite=use_rewrite)
 
     print()
     print("─" * 50)

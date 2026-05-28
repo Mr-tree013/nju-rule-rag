@@ -104,6 +104,16 @@ def create_reranker(settings: Settings | None = None):
     return CrossEncoderReranker(model_name=s.reranker_model)
 
 
+def create_query_rewriter(settings: Settings | None = None, llm=None):
+    """Build a ``QueryRewriter`` if enabled, else None."""
+    s = settings or _get_settings()
+    if not s.enable_query_rewrite:
+        return None
+    from app.query_rewriter import QueryRewriter
+    client = llm or create_llm_client(s)
+    return QueryRewriter(client)
+
+
 def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     """Build a fully wired ``RAGPipeline`` ready to answer questions."""
     s = settings or _get_settings()
@@ -111,11 +121,13 @@ def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     llm = create_llm_client(s)
     fallback_llm = create_fallback_llm_client(s)
     reranker = create_reranker(s)
+    query_rewriter = create_query_rewriter(s, llm=llm)
     pipeline = RAGPipeline(
         retriever=retriever,
         llm=llm,
         fallback_llm=fallback_llm,
         reranker=reranker,
+        query_rewriter=query_rewriter,
         settings=s,
     )
     warnings = s.validate()
