@@ -161,7 +161,7 @@ def split_by_article(content: str) -> list[tuple[str, str]]:
 
 def split_by_markdown_sections(content: str) -> list[tuple[str, str]]:
     """Split by ## N. sections for non-regulatory docs."""
-    sections = re.split(r"\n(?=## \d+\.)", content)
+    sections = re.split(r"\n(?=## (?:\d+\.|[一二三四五六七八九十]+、))", content)
     chunks = []
     for section in sections:
         section = section.strip()
