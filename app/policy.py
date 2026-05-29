@@ -191,9 +191,10 @@ class TwoLayerRiskClassifier(RiskClassifier):
         "毕业需要多少学分",
     ]
 
-    def __init__(self, embedding_model=None):
+    def __init__(self, embedding_model=None, gpu_lock=None):
         super().__init__()
         self._embedder = embedding_model
+        self._gpu_lock = gpu_lock
         self._centroids: dict[str, np.ndarray] | None = None
         if embedding_model is not None:
             self._build_centroids()
@@ -224,7 +225,11 @@ class TwoLayerRiskClassifier(RiskClassifier):
             return result
 
         try:
-            vec = self._embedder.encode([question])[0]
+            if self._gpu_lock:
+                with self._gpu_lock:
+                    vec = self._embedder.encode([question])[0]
+            else:
+                vec = self._embedder.encode([question])[0]
             sim_high = self._cosine(vec, self._centroids["high"])
             sim_medium = self._cosine(vec, self._centroids["medium"])
             sim_low = self._cosine(vec, self._centroids["low"])

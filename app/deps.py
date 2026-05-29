@@ -126,7 +126,8 @@ def create_pipeline(settings: Settings | None = None) -> RAGPipeline:
     # Two-layer risk classifier: keyword + embedding disambiguation
     from app.policy import TwoLayerRiskClassifier
     emb_model = retriever._vector.embedding_model if hasattr(retriever, '_vector') else None
-    classifier = TwoLayerRiskClassifier(embedding_model=emb_model)
+    emb_lock = retriever._vector.gpu_lock if hasattr(retriever, '_vector') else None
+    classifier = TwoLayerRiskClassifier(embedding_model=emb_model, gpu_lock=emb_lock)
 
     pipeline = RAGPipeline(
         retriever=retriever,

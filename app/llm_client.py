@@ -79,26 +79,29 @@ class LLMClient:
             url, headers=self._headers, json=body,
             timeout=self._timeout, stream=True,
         )
-        if resp.status_code >= 400:
-            raise LLMError(
-                f"LLM stream API 返回 {resp.status_code}: {resp.text[:300]}",
-                status_code=resp.status_code,
-            )
-        for line in resp.iter_lines(decode_unicode=True):
-            if not line or not line.startswith("data: "):
-                continue
-            data_str = line[6:]  # strip "data: " prefix
-            if data_str.strip() == "[DONE]":
-                break
-            try:
-                import json
-                chunk = json.loads(data_str)
-                delta = chunk["choices"][0].get("delta", {})
-                content = delta.get("content", "")
-                if content:
-                    yield content
-            except (json.JSONDecodeError, KeyError, IndexError):
-                continue
+        try:
+            if resp.status_code >= 400:
+                raise LLMError(
+                    f"LLM stream API 返回 {resp.status_code}: {resp.text[:300]}",
+                    status_code=resp.status_code,
+                )
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line or not line.startswith("data: "):
+                    continue
+                data_str = line[6:]  # strip "data: " prefix
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    import json
+                    chunk = json.loads(data_str)
+                    delta = chunk["choices"][0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        yield content
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    continue
+        finally:
+            resp.close()
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Send an embeddings request and return the vector list."""

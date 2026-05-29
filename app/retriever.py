@@ -12,6 +12,7 @@ logging a warning and returning empty results.
 
 import json
 import pickle
+import threading
 from pathlib import Path
 from typing import Callable, Protocol
 
@@ -194,6 +195,7 @@ class VectorRetriever:
         self._collection = None
         self._chunks_by_id: dict[str, dict] = {}
         self._loaded = False
+        self._gpu_lock = threading.RLock()  # serializes GPU access to embedding model
 
         self._load_chunks(chunks_path, chunk_lookup_path)
         if enable:
@@ -263,6 +265,11 @@ class VectorRetriever:
         return self._embedding_model
 
     @property
+    def gpu_lock(self) -> threading.RLock:
+        """Lock that serializes GPU access to the embedding model."""
+        return self._gpu_lock
+
+    @property
     def is_loaded(self) -> bool:
         return self._loaded
 
@@ -276,7 +283,8 @@ class VectorRetriever:
 
         try:
             if self._embedding_model is not None:
-                vec = self._embedding_model.encode(question).tolist()
+                with self._gpu_lock:
+                    vec = self._embedding_model.encode(question).tolist()
                 raw = self._collection.query(query_embeddings=[vec], n_results=top_k)
             else:
                 raw = self._collection.query(query_texts=[question], n_results=top_k)

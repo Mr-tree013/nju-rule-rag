@@ -258,26 +258,26 @@ class RAGPipeline:
     def _generate(self, messages: list[dict]) -> str:
         """Call primary LLM; fall back to secondary on failure."""
         try:
-            result = self._llm.chat(messages, temperature=0.2)
+            result = self._llm.chat(messages, temperature=0.35)
             self._llm_used = self._llm.model
             return result
         except LLMError:
             if self._fallback_llm:
                 print("[LLM] 主模型失败，切换到回退模型")
                 self._llm_used = self._fallback_llm.model
-                return self._fallback_llm.chat(messages, temperature=0.2)
+                return self._fallback_llm.chat(messages, temperature=0.35)
             raise
 
     def _generate_stream(self, messages: list[dict]):
         """Stream LLM tokens via SSE. Yields content fragments."""
         try:
-            yield from self._llm.chat_stream(messages, temperature=0.2)
+            yield from self._llm.chat_stream(messages, temperature=0.35)
             self._llm_used = self._llm.model
         except Exception:
             if self._fallback_llm:
                 print("[LLM] 主模型失败，切换到回退模型")
                 self._llm_used = self._fallback_llm.model
-                yield from self._fallback_llm.chat_stream(messages, temperature=0.2)
+                yield from self._fallback_llm.chat_stream(messages, temperature=0.35)
             else:
                 raise
 

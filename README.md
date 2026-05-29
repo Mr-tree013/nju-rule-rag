@@ -2,7 +2,9 @@
 
 南京大学本科校规与教务流程 RAG（检索增强生成）问答系统。
 
-基于 70 份校规、办事指南和校园生活文档，支持自然语言提问、来源引用、风险分级与拒答机制。已接入 QQ Bot（NapCat + OneBot v11）。
+基于 105 份校规、办事指南和校园生活文档（3962 chunks），支持自然语言提问、来源引用、风险分级与拒答机制。已接入 QQ Bot（NapCat + OneBot v11）。
+
+**当前版本**: v0.5.0 | 122 测试 | 118 道评测题 | 正常延迟 2-3s
 
 ---
 
@@ -10,12 +12,14 @@
 
 本项目已全面迁移到**本地模型**，需要 NVIDIA GPU 运行。
 
-| 组件 | 技术栈 | 显存占用 |
-|------|--------|---------|
-| LLM 生成 | Ollama + Qwen3-8B（无思考模式） | ~5 GB |
-| Embedding | BGE-M3（1024 维，sentence-transformers） | ~2.2 GB |
-| Reranker | BGE-Reranker-v2-m3（cross-encoder） | ~1 GB |
-| **合计** | | **~8-10 GB** |
+| 组件 | 技术栈 | 显存占用 | 线程安全 |
+|------|--------|---------|---------|
+| LLM 生成 | Ollama + Qwen3-8B（无思考模式） | ~6 GB | N/A（独立进程） |
+| Embedding | BGE-M3（1024 维，sentence-transformers） | ~2.2 GB | 否 — GPU RLock 序列化 |
+| Reranker | BGE-Reranker-v2-m3（cross-encoder） | ~1.0 GB | 否 — GPU Lock 序列化 |
+| **合计（运行时）** | | **~12-16 GB** | |
+
+> PyTorch CUDA 缓存碎片会在运行 ~50 请求后推高显存占用至 15.9GB。如果延迟突然飙升，重启服务器即可恢复。
 
 ### 最低硬件要求
 
@@ -75,11 +79,14 @@ PYTHONPATH=. python scripts/build_chunks.py
 PYTHONPATH=. python scripts/build_index.py
 python scripts/validate_chunks.py
 
-# 7. 启动（预热查询会提前加载所有模型到 GPU，约 15 秒）
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 7. 启动（必须清代理！）
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+HF_HUB_OFFLINE=1 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-看到 `[Pipeline] 预热完成` 后即可使用。后续请求延迟 ~2 秒。
+看到 `[Pipeline] 预热完成` 后即可使用。正常请求延迟 ~2-3 秒。
+
+> **重要**：如果 WSL 终端残留了 Windows 代理变量（`HTTP_PROXY=http://127.0.0.1:7897`），启动前必须 `unset`，否则 HuggingFace 检查走死代理导致模型加载失败。`HF_HUB_OFFLINE=1` 强制使用本地缓存模型。
 
 ---
 
@@ -148,24 +155,24 @@ POST /ask {"question": "..."}
         │
         ▼
 TwoLayerRiskClassifier   L1关键词(高召回) → L2 BGE-M3 centroid消歧
-        │
+        │  🔒 GPU RLock（与 retriever 共享锁）
         ▼
 HybridRetriever          BM25(0.25) + BGE-M3 Vector(0.45) + Priority(0.30)
-        │
+        │  🔒 GPU RLock
         ▼
 CrossEncoderReranker     BGE-Reranker-v2-m3 (40候选 → 12精排)
-        │
+        │  🔒 GPU Lock
         ▼
 _filter → _dedup_chunks  (3/source, 12 total)
         │
         ▼
-LLM (Qwen3-8B)           fallback→DeepSeek on failure
-        │
+LLM (Qwen3-8B) 0.35     fallback→DeepSeek on failure
+        │  ⬢ HTTP I/O（不加锁，可并发）
         ▼
 [_verify_citations]      bigram重叠度校验（可选）
         │
         ▼
-_format_response         来源去重 + 高风险通知(含部门联系方式)
+_format_response         250字截断 + 高风险通知(含部门联系方式)
         │
         ▼
 { question, answer, risk_level, sources[], debug }
@@ -190,8 +197,8 @@ _format_response         来源去重 + 高风险通知(含部门联系方式)
 
 | 脚本 | 用途 |
 |------|------|
-| `eval_rag.py` | 70 题端到端 /ask 评测（需服务器） |
-| `eval_retrieval.py` | 检索指标（recall@k, MRR, precision/recall），支持 `--rerank` |
+| `eval_rag.py` | 118 题端到端 /ask 评测（需服务器） |
+| `eval_retrieval.py` | 检索指标（recall@k, MRR, precision/recall），支持 `--rerank` `--rewrite` |
 | `eval_generation.py` | LLM-as-judge 评分（忠实度/相关性/拒答） |
 | `tune_weights.py` | 混合权重网格搜索（126 组合） |
 | `check_regression.py` | CI 门禁（对比基线，回退则非零退出） |
@@ -230,14 +237,14 @@ python scripts/validate_sources.py && python scripts/validate_chunks.py
 
 ## 检索基线
 
-70 题评测（BGE-M3 + Reranker + 优化权重 + 改进 Chunking）：
+118 题评测（BGE-M3 + Reranker）：
 
 | 指标 | 值 |
 |------|-----|
 | recall@5 | 84.3% |
 | recall@10 | 92.9% |
 | MRR | 0.599 |
-| 测试 | 120 个单元测试 |
+| 单元测试 | 122 个 |
 
 ---
 
@@ -280,6 +287,16 @@ QQ_BOT_API_BASE_URL=http://127.0.0.1:8000
 
 ## 常见问题
 
+### 服务器启动失败 / 模型加载报 Network is unreachable
+
+**最常见原因**：WSL 终端残留 Windows 代理变量。Clash/V2Ray 关闭后代理端口不可达，Python 的 huggingface_hub 走死代理超时。
+
+```bash
+# 启动前必须执行
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+export HF_HUB_OFFLINE=1  # 强制使用本地缓存模型（/home/mrtree/hf-cache/）
+```
+
 ### 启动报 CUDA 不可用
 
 PyTorch 版本需与驱动 CUDA 版本一致：
@@ -291,12 +308,24 @@ nvidia-smi | grep "CUDA Version"                       # 应一致
 
 不一致则重装：`pip install torch --index-url https://download.pytorch.org/whl/cu124`
 
+### 请求突然变慢（2s → 50s+）
+
+显存碎片累积导致 Ollama 退化。重启服务器即可恢复：
+
+```bash
+pkill -f "uvicorn app.main"
+# 等几秒后重新启动
+HF_HUB_OFFLINE=1 uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+长期方案：换 24GB 显存 GPU，或将 BGE-M3 切换到 CPU 模式。
+
 ### 显存不足
 
 ```bash
 ENABLE_RERANK=false        # 关 reranker（省 ~1 GB）
 ENABLE_VECTOR=false        # 关向量检索，纯 BM25（省 ~2.2 GB）
-# 换成云端 API 替代本地 LLM 可省 ~5 GB
+# 换成云端 API 替代本地 LLM 可省 ~6 GB
 ```
 
 ### 构建命令报 "No module named 'app'"
@@ -309,7 +338,7 @@ PYTHONPATH=. python scripts/build_index.py
 
 ### QQ Bot 首条消息很慢
 
-服务启动时会自动跑预热查询（看到 `[Pipeline] 预热完成` 即完成），之后请求 ~2 秒。
+服务启动时会自动跑预热查询（看到 `[Pipeline] 预热完成` 即完成），之后请求 ~2-3 秒。
 
 ---
 

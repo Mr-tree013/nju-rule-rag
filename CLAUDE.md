@@ -6,15 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.4.0. 70 source documents → 3771 chunks. Local Qwen3-8B + BGE-M3 embeddings + BGE-Reranker-v2-m3 two-stage retrieval. 120 tests pass. QQ Bot integration.
+**Current status**: v0.5.0. 105 source documents → 3962 chunks. 118 eval questions. GPU thread-safety fix applied. System prompt rewritten for conversational style. Two-stage generation disabled (merged into single-pass prompt). 122 tests pass. QQ Bot integration.
 
 ## Commands
 
 ```bash
 source .venv/bin/activate
 
-# Start dev server
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Start dev server — MUST clear proxy env vars first (otherwise HF model checks fail)
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+HF_HUB_OFFLINE=1 uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Run tests
 pytest
@@ -47,52 +48,68 @@ curl -N -X POST http://localhost:8000/ask/stream -H "Content-Type: application/j
 POST /ask {"question": "..."}
         │
         ▼
+[_handle_meta_question]  "你是谁"/"你能干什么" → 直接回复（不走检索）
+        │
+        ▼
 [QueryRewriter]        口语化规范化（should_rewrite()守卫，默认跳过正式问题）
         │
         ▼
-TwoLayerRiskClassifier  L1关键词(高召回) → L2 embedding centroid相似度消歧
+TwoLayerRiskClassifier  L1关键词(高召回) → L2 BGE-M3 centroid消歧
+        │  (BGE-M3 encode 受 GPU RLock 保护)
         │
         ▼
 HybridRetriever        BM25(0.25) + BGE-M3 Vector(0.45) + Priority(0.30)
+        │  (BGE-M3 encode 受 GPU RLock 保护 — 与 classifier 共享同一锁)
         │
         ▼
-CrossEncoderReranker   BGE-Reranker-v2-m3 二阶段精排（40候选→12结果）
+CrossEncoderReranker   BGE-Reranker-v2-m3 (40候选→12精排)
+        │  (CrossEncoder predict 受 GPU Lock 保护)
         │
         ▼
 _filter → _dedup       score阈值过滤 → max 3/source, 12 total
         │
         ▼
-LLM (Qwen3-8B)         fallback→DeepSeek on failure
+LLM (Qwen3-8B)         temp=0.35, fallback→DeepSeek on failure
+        │  (HTTP I/O — 不加锁，可并发)
         │
         ▼
 [_verify_citations]    答案句bigram与来源重叠度检查（ENABLE_CITATION_VERIFY）
         │
         ▼
-_format_response       长度截断 + 高风险通知(含部门联系方式) + 来源时效性
+_format_response       长度截断(250字) + 高风险通知(含部门联系方式) + 来源时效性
         │
         ▼
 { question, answer, risk_level, need_human_confirm, sources[], debug }
 ```
 
-### Key module changes since v0.3.0
+### Key module changes since v0.4.0
+
+- **`app/retriever.py`** — `VectorRetriever` added `threading.RLock` around `embedding_model.encode()` to prevent CUDA deadlock from concurrent GPU access. Exposes `gpu_lock` property for sharing with classifier.
+- **`app/reranker.py`** — `CrossEncoderReranker` added `threading.Lock` around `model.predict()`. `_load()` uses double-checked locking to prevent race on model init.
+- **`app/policy.py`** — `TwoLayerRiskClassifier` accepts shared `gpu_lock` parameter; uses it around embedding calls to serialize GPU access with retriever.
+- **`app/deps.py`** — Wires the shared GPU lock from retriever to classifier via `retriever._vector.gpu_lock`.
+- **`app/config.py`** — System prompt rewritten: persona changed to "南大学长", added 3 few-shot examples, banned bureaucratic language. `DEFAULT_SYSTEM_PROMPT` is the authoritative prompt.
+- **`app/pipeline.py`** — Generation temperature raised 0.2→0.35 for more natural output. `ENABLE_TWO_STAGE_GENERATION` deprecated (merged into single-pass prompt). LLM call is outside GPU lock (HTTP I/O, concurrent-safe).
+- **`app/llm_client.py`** — `chat_stream()` added `try/finally` to close HTTP response, preventing fd leak.
+
+### Previous changes (already in v0.4.0)
 
 - **`app/reranker.py`** — `CrossEncoderReranker` (BGE-Reranker-v2-m3), Protocol `Reranker` interface.
-- **`app/query_rewriter.py`** — `QueryRewriter` with `should_rewrite()` guard: only triggers on colloquial queries (≤6 chars or contains 咋办/挂科/能行吗 patterns).
+- **`app/query_rewriter.py`** — `QueryRewriter` with `should_rewrite()` guard: only triggers on colloquial queries.
 - **`app/cache.py`** — `QACache`: LRU in-memory cache (200 entries, 1h TTL), thread-safe.
-- **`app/policy.py`** — `TwoLayerRiskClassifier` extends `RiskClassifier` with BGE-M3 embedding centroid similarity for disambiguation. `high_risk_notice()` now accepts department contacts from source metadata.
-- **`app/llm_client.py`** — Added `chat_stream()` for SSE token-by-token generation.
-- **`app/retriever.py`** — `HybridRetriever.search()` now passes `top_k` through to sub-retrievers (was hardcoded to 10). `VectorRetriever` exposes `embedding_model` property. nju-life QA penalty reduced from 0.65→0.85.
-- **`app/pipeline.py`** — Steps added: `_rewrite_query`, `_rerank`, `_generate_stream`, `_verify_citations`. `_build_prompt` accepts `is_process` for step-by-step formatting. `preload_pipeline()` runs a warmup query to pre-load all models into GPU. `_extract_sources` now includes `fetched_at`.
+- **`app/policy.py`** — `TwoLayerRiskClassifier` extends `RiskClassifier` with BGE-M3 centroid similarity.
+- **`app/retriever.py`** — nju-life QA penalty reduced from 0.65→0.85.
+- **`app/pipeline.py`** — `preload_pipeline()`, `_verify_citations`, `_extract_sources` includes `fetched_at`.
 
 ## Model inventory
 
-| Model | Size | Where | Purpose |
-|-------|------|-------|---------|
-| Qwen3-8B (no-think) | 5.2 GB | Ollama `qwen3:8b-nothink` | LLM generation |
-| BGE-M3 | 2.2 GB | sentence-transformers | Query/document embedding (1024-dim) |
-| BGE-Reranker-v2-m3 | 1.0 GB | sentence-transformers | Cross-encoder reranking |
+| Model | Size | Where | Purpose | Thread-safe? |
+|-------|------|-------|---------|-------------|
+| Qwen3-8B (no-think) | 5.2 GB | Ollama `qwen3:8b-nothink` | LLM generation | N/A (separate process) |
+| BGE-M3 | 2.2 GB | sentence-transformers | Query/document embedding (1024-dim) | **No** — serialized via GPU RLock |
+| BGE-Reranker-v2-m3 | 1.0 GB | sentence-transformers | Cross-encoder reranking | **No** — serialized via GPU Lock |
 
-Total GPU memory: ~8-10 GB. Create the no-think variant via `ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink`.
+Total GPU memory: ~8-10 GB (tight on 16GB, see deployment notes). Create the no-think variant via `ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink`.
 
 ## Data pipeline
 
@@ -128,15 +145,41 @@ FALLBACK_LLM_MODEL=deepseek-chat
 BM25_TOP_K=10; VECTOR_TOP_K=10; HYBRID_TOP_K=5
 MIN_RELIABLE_SCORE=0.2; HIGH_RISK_MIN_SCORE=0.25
 
-# Features (all default-off in .env.example)
-ENABLE_RERANK=true
-ENABLE_QUERY_REWRITE=true
-ENABLE_CITATION_VERIFY=false
-ENABLE_LLM_FALLBACK=true
+# Features
+ENABLE_RERANK=true           # cross-encoder re-ranker
+ENABLE_QUERY_REWRITE=true    # colloquial→formal query normalization
+ENABLE_CITATION_VERIFY=false # bigram overlap guardrail
+ENABLE_LLM_FALLBACK=true     # DeepSeek fallback if Ollama fails
+ENABLE_TWO_STAGE_GENERATION=false  # DEPRECATED — merged into system prompt
 
 # Embedding
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ```
+
+## Deployment notes
+
+**Startup checklist** (critical — skip this and the server WILL fail):
+
+```bash
+# 1. Clear stale proxy vars (Windows proxy leaks into WSL)
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+
+# 2. Offline mode prevents HuggingFace HEAD checks that hang on dead proxy
+export HF_HUB_OFFLINE=1
+
+# 3. Start server
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+**GPU memory**: 16GB is the minimum for Qwen3-8B + BGE-M3 + BGE-Reranker simultaneously. After ~50 requests, PyTorch CUDA cache fragments can push usage to 15.9GB, degrading Ollama generation from 2s to 50s+. Restart server if latency spikes.
+
+**Latency profile** (post-fix, 2-stage gen disabled):
+- Normal questions (80%): 2-3s
+- Long-context questions: 10-25s
+- Pathological (very long chunks): 60-150s — root cause is Ollama generating excessive output despite 250-char limit in system prompt
+
+**Thread safety**: GPU models (BGE-M3, BGE-Reranker) are NOT thread-safe. Calls to `.encode()` and `.predict()` are serialized via per-model locks. The LLM HTTP call to Ollama is outside the lock and can run concurrently.
 
 ## Design principles
 

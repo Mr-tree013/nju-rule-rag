@@ -5,6 +5,7 @@ A reranker re-scores a larger candidate set with a more expensive but more
 accurate model, then returns a smaller set of top-ranked chunks for the LLM.
 """
 
+import threading
 from typing import Protocol, runtime_checkable
 
 
@@ -29,6 +30,8 @@ class CrossEncoderReranker:
     def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
         self._model_name = model_name
         self._model = None
+        self._load_lock = threading.Lock()
+        self._gpu_lock = threading.Lock()
 
     @property
     def is_loaded(self) -> bool:
@@ -41,18 +44,20 @@ class CrossEncoderReranker:
     def _load(self):
         if self._model is not None:
             return
-        from sentence_transformers import CrossEncoder
-        print(f"[Reranker] Loading {self._model_name} ...")
-        self._model = CrossEncoder(self._model_name)
+        with self._load_lock:
+            if self._model is not None:
+                return
+            from sentence_transformers import CrossEncoder
+            print(f"[Reranker] Loading {self._model_name} ...")
+            self._model = CrossEncoder(self._model_name)
 
     def rerank(self, question: str, chunks: list[dict], top_k: int = 12) -> list[dict]:
         if not chunks:
             return []
         self._load()
-        # Build (query, doc) pairs
         pairs = [(question, c["content"]) for c in chunks]
-        scores = self._model.predict(pairs, show_progress_bar=False)
-        # Attach/override score and re-sort
+        with self._gpu_lock:
+            scores = self._model.predict(pairs, show_progress_bar=False)
         for c, s in zip(chunks, scores):
             c["rerank_score"] = float(s)
             c["score"] = float(s)  # downstream filter expects "score"
