@@ -111,14 +111,27 @@ class RAGPipeline:
             result["debug"]["timing"] = timing
             return result
 
-        # 6. Build prompt & call LLM — dedup by source, cap total
+        # 6. Dedup & decide confidence tier
         t0 = time.time()
         top_chunks = self._dedup_chunks(reliable)
-        messages, prompt_tokens, prompt_chunks = self._build_prompt(
-            question, top_chunks, classification.level, classification.is_process
-        )
+        confidence_tier, tier_top1, tier_top3 = self._decide_confidence_tier(top_chunks)
         timing["build_prompt_ms"] = round((time.time() - t0) * 1000)
 
+        # 7. Tier 3: direct referral, skip LLM
+        if confidence_tier == "3":
+            result = self._tier3_response(
+                question, classification, t_start, retrieval_count, timing,
+                {"top1": tier_top1, "top3_avg": tier_top3},
+            )
+            return result
+
+        # 8. Build prompt (inject hedge instructions for Tier 2)
+        messages, prompt_tokens, prompt_chunks = self._build_prompt(
+            question, top_chunks, classification.level, classification.is_process,
+            confidence_tier=confidence_tier,
+        )
+
+        # 9. Call LLM
         t0 = time.time()
         try:
             if self._settings.enable_two_stage_generation:
@@ -129,17 +142,19 @@ class RAGPipeline:
             return self._fallback_response(question, classification, t_start, retrieval_count, timing=timing)
         timing["generate_ms"] = round((time.time() - t0) * 1000)
 
-        # 7. Verify citations (optional guardrail)
+        # 10. Verify citations (optional guardrail)
         citation_warnings: list[str] = []
         if self._settings.enable_citation_verify:
             citation_warnings = self._verify_citations(answer_text, top_chunks)
 
-        # 8. Format final response
+        # 11. Format final response
         t0 = time.time()
         result = self._format_response(
             question, answer_text, classification, top_chunks,
             t_start, retrieval_count, citation_warnings,
             timing=timing, prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
+            confidence_tier=confidence_tier,
+            tier_top1=tier_top1, tier_top3=tier_top3,
         )
         timing["format_ms"] = round((time.time() - t0) * 1000)
 
@@ -252,20 +267,80 @@ class RAGPipeline:
                 break
         return result
 
+    def _decide_confidence_tier(self, chunks: list[dict]) -> tuple[str, float, float]:
+        """Three-tier confidence based on top chunks' original hybrid scores.
+
+        Uses *orig_score* (pre-rerank hybrid score) for tiering, not the fused
+        score, because hybrid scores have better dynamic range (0.2-0.75).
+
+        Returns (tier, top1_score, top3_avg_score).
+        """
+        if not chunks:
+            return ("3", 0.0, 0.0)
+        orig_scores = sorted(
+            [c.get("orig_score", c.get("score", 0)) for c in chunks],
+            reverse=True,
+        )
+        top1 = orig_scores[0]
+        top3_avg = sum(orig_scores[:3]) / min(3, len(orig_scores))
+        s = self._settings
+        if top1 >= s.confidence_tier1_top1 and top3_avg >= s.confidence_tier1_top3:
+            return ("1", top1, top3_avg)
+        elif top1 >= s.confidence_tier3_top1:
+            return ("2", top1, top3_avg)
+        else:
+            return ("3", top1, top3_avg)
+
+    def _tier3_response(
+        self, question: str, classification, t_start: float, retrieval_count: int,
+        timing: dict, tier_info: dict,
+    ) -> dict:
+        """Short referral response for Tier 3 — skip LLM entirely."""
+        answer = (
+            "这个问题我手头的校规资料里没有覆盖到，建议直接联系相关部门：\n"
+            "  - 教务处 (025) 8968-1234\n"
+            "  - 或通过教务系统 jw.nju.edu.cn 在线咨询"
+        )
+        return {
+            "question": question,
+            "answer": answer,
+            "risk_level": classification.level.value,
+            "need_human_confirm": classification.level == RiskLevel.HIGH,
+            "sources": [],
+            "debug": {
+                "retrieval_count": retrieval_count,
+                "latency": round(time.time() - t_start, 3),
+                "audit_warnings": [],
+                "citation_warnings": [],
+                "llm_used": None,
+                "cached": False,
+                "timing": timing,
+                "confidence_tier": "3",
+                "tier_top1_score": tier_info.get("top1", 0),
+                "tier_top3_avg": tier_info.get("top3_avg", 0),
+            },
+        }
+
     def _build_prompt(
         self, question: str, chunks: list[dict], level: RiskLevel,
         is_process: bool = False,
+        confidence_tier: str = "1",
     ) -> tuple[list[dict[str, str]], int, int]:
         """Build the LLM prompt, applying token budget to trim chunks.
 
         Returns (messages, estimated_prompt_tokens, chunk_count_used).
         """
+        # Inject tier-specific instructions into system prompt
+        system = self._settings.system_prompt
+        if confidence_tier == "2":
+            system += self._settings.tier2_hedge_prompt
+
         budget = self._settings.prompt_token_budget
         max_chunk_tok = self._settings.max_chunk_tokens
         max_chunks = self._settings.max_chunks_in_prompt
 
         # System prompt token estimate (Chinese chars ≈ tokens)
-        system_tokens = len(self._settings.system_prompt)
+        system_tokens = len(system)
         question_tokens = len(question) + 50  # 50 for framing text
         overhead = system_tokens + question_tokens + 200  # 200 for formatting/metadata
         remaining = budget - overhead
@@ -288,8 +363,7 @@ class RAGPipeline:
 
         context = "\n\n---\n\n".join(context_parts) if context_parts else "（无参考资料）"
 
-        # System prompt with conditional short patches
-        system = self._settings.system_prompt
+        # Append high-risk patch (after any tier-specific instructions already in `system`)
         if level == RiskLevel.HIGH:
             system += "\n\n本题为高风险，只给一般规定与办事入口，不给个人结论。"
 
@@ -448,6 +522,9 @@ class RAGPipeline:
         timing: dict[str, float] | None = None,
         prompt_tokens: int = 0,
         prompt_chunks: int = 0,
+        confidence_tier: str = "1",
+        tier_top1: float = 0.0,
+        tier_top3: float = 0.0,
     ) -> dict[str, Any]:
         # Length cap
         limit = self._settings.max_answer_length
@@ -479,6 +556,9 @@ class RAGPipeline:
             "prompt_tokens": prompt_tokens,
             "prompt_chunks": prompt_chunks,
             "truncated": truncated,
+            "confidence_tier": confidence_tier,
+            "tier_top1_score": round(tier_top1, 4),
+            "tier_top3_avg": round(tier_top3, 4),
         }
 
         return {

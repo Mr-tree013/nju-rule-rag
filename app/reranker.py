@@ -73,9 +73,11 @@ class CrossEncoderReranker:
             logits = self._model.predict(pairs, show_progress_bar=False)
         for c, logit in zip(chunks, logits):
             c["rerank_score"] = float(logit)
+            # Save original hybrid score for confidence tiering
+            original = c.get("score", 0.0)
+            c["orig_score"] = original
             # Fuse original hybrid score with sigmoid(logit) to keep both signals
             sigmoid_score = 1.0 / (1.0 + math.exp(-float(logit)))
-            original = c.get("score", 0.0)
             c["score"] = 0.4 * original + 0.6 * sigmoid_score
         chunks.sort(key=lambda c: c["score"], reverse=True)
         return chunks[:top_k]

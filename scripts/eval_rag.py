@@ -131,6 +131,7 @@ def main() -> int:
                 has_source = source_count > 0 and not refused
                 kw_hit = keyword_hit(expected_keywords, answer, sources)
 
+                debug = data.get("debug", {})
                 result = {
                     "id": qid,
                     "question": question,
@@ -145,6 +146,9 @@ def main() -> int:
                     "has_source": has_source,
                     "keyword_hit": kw_hit,
                     "refused": refused,
+                    "confidence_tier": debug.get("confidence_tier", ""),
+                    "tier_top1_score": debug.get("tier_top1_score", 0),
+                    "tier_top3_avg": debug.get("tier_top3_avg", 0),
                     "error": "",
                 }
                 success_count += 1
@@ -165,6 +169,7 @@ def main() -> int:
                     "has_source": False,
                     "keyword_hit": False,
                     "refused": True,
+                    "confidence_tier": "", "tier_top1_score": 0, "tier_top3_avg": 0,
                     "error": f"HTTP {resp.status_code}",
                 }
                 error_count += 1
@@ -177,7 +182,9 @@ def main() -> int:
                 "should_refuse": should_refuse,
                 "answer": "", "sources": "", "source_count": 0,
                 "latency": latency, "has_source": False,
-                "keyword_hit": False, "refused": True, "error": "timeout",
+                "keyword_hit": False, "refused": True,
+                    "confidence_tier": "", "tier_top1_score": 0, "tier_top3_avg": 0,
+                    "error": "timeout",
             }
             error_count += 1
             print("TIMEOUT")
@@ -189,7 +196,9 @@ def main() -> int:
                 "should_refuse": should_refuse,
                 "answer": "", "sources": "", "source_count": 0,
                 "latency": latency, "has_source": False,
-                "keyword_hit": False, "refused": True, "error": "connection error",
+                "keyword_hit": False, "refused": True,
+                    "confidence_tier": "", "tier_top1_score": 0, "tier_top3_avg": 0,
+                    "error": "connection error",
             }
             error_count += 1
             print("CONNECTION ERROR")
@@ -201,7 +210,9 @@ def main() -> int:
                 "should_refuse": should_refuse,
                 "answer": "", "sources": "", "source_count": 0,
                 "latency": latency, "has_source": False,
-                "keyword_hit": False, "refused": True, "error": str(exc)[:100],
+                "keyword_hit": False, "refused": True,
+                "confidence_tier": "", "tier_top1_score": 0, "tier_top3_avg": 0,
+                "error": str(exc)[:100],
             }
             error_count += 1
             print(f"ERROR: {exc}")
@@ -213,7 +224,8 @@ def main() -> int:
     fieldnames = [
         "id", "question", "topic", "expected_risk_level", "actual_risk_level",
         "should_refuse", "answer", "sources", "source_count",
-        "latency", "has_source", "keyword_hit", "refused", "error",
+        "latency", "has_source", "keyword_hit", "refused",
+        "confidence_tier", "tier_top1_score", "tier_top3_avg", "error",
     ]
     with open(RESULTS_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

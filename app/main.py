@@ -128,7 +128,7 @@ async def ask_stream(req: AskRequest):
     if pipeline._reranker and pipeline._settings.enable_rerank and chunks:
         chunks = pipeline._rerank(search_query, chunks)
 
-    # 5. Filter & dedup
+    # 5. Filter & dedup & decide tier
     reliable = pipeline._filter_chunks(chunks, classification.level)
     top_chunks = pipeline._dedup_chunks(reliable) if reliable else []
 
@@ -138,8 +138,21 @@ async def ask_stream(req: AskRequest):
         )
         return JSONResponse(content=result)
 
-    # 6. Build prompt
-    messages, prompt_tokens, prompt_chunks = pipeline._build_prompt(req.question, top_chunks, classification.level, classification.is_process)
+    confidence_tier, tier_top1, tier_top3 = pipeline._decide_confidence_tier(top_chunks)
+
+    # Tier 3: direct referral, skip LLM
+    if confidence_tier == "3":
+        result = pipeline._tier3_response(
+            req.question, classification, t_start, retrieval_count, {},
+            {"top1": tier_top1, "top3_avg": tier_top3},
+        )
+        return JSONResponse(content=result)
+
+    # 6. Build prompt (with tier-specific instructions)
+    messages, prompt_tokens, prompt_chunks = pipeline._build_prompt(
+        req.question, top_chunks, classification.level, classification.is_process,
+        confidence_tier=confidence_tier,
+    )
 
     async def generate():
         try:
@@ -154,6 +167,8 @@ async def ask_stream(req: AskRequest):
                 req.question, full_answer, classification, top_chunks,
                 t_start, retrieval_count,
                 prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
+                confidence_tier=confidence_tier,
+                tier_top1=tier_top1, tier_top3=tier_top3,
             )
             yield f"data: {json.dumps({'done': True, 'result': result})}\n\n"
         except Exception as exc:
