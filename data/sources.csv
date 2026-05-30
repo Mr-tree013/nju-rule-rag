@@ -1,106 +1,111 @@
-source_id,title,filename,url,source_type,department,scope,priority,need_login,update_frequency,note
-nju-jw-001,南京大学普通全日制本科生学籍管理细则,南京大学-学籍管理细则.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南字发〔2025〕153号
-nju-jw-002,南京大学全日制本科生考试管理办法,南京大学-考试管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-003,南京大学本科课程成绩管理规定,南京大学-成绩管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-004,南京大学普通全日制本科生缓考管理规定,南京大学-缓考管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南本院〔2025〕78号
-nju-jw-005,南京大学普通全日制本科生补考和重修管理规定,南京大学-补考和重修管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南本院〔2025〕76号
-nju-jw-006,南京大学本科课程选课管理办法,南京大学-选课管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-007,南京大学学士学位授予实施办法,南京大学-学士学位授予实施办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-008,南京大学本科生学业预警及帮扶管理办法,南京大学-学业预警及帮扶管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-009,南京大学本科实习实训课程考核管理办法,南京大学-实习实训课程考核管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-010,南京大学关于本科毕业论文（设计）工作的若干规定,南京大学-本科毕业论文（设计）工作若干规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-011,南京大学本科学科专业准入实施管理办法,南京大学-学科专业准入实施管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-012,南京大学普通全日制本科生休学创业管理办法,南京大学-休学创业管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-013,南京大学本科生创新创业学分管理办法（试行）,南京大学-创新创业学分管理办法（试行）.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件
-nju-jw-014,南京大学交换生课程认定与学分转换管理办法,南京大学-交换培养与课程认定管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件 交换培养
-nju-jw-015,南京大学本科生修读辅修专业管理细则,南京大学-修读辅修专业管理细则.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件 辅修
-nju-jw-016,南京大学五育项目实施方案,南京大学-五育项目实施方案.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-017,南京大学本科生劳动教育学分管理办法,南京大学-劳动教育学分管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-018,南京大学本科生全球科考与科研训练项目管理办法,南京大学-全球科考与科研训练项目管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-019,南京大学本科生全球科考赴国（境）外学生准则,南京大学-全球科考赴国境外学生准则.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-020,南京大学以项目为载体的课程实施方案,南京大学-以项目为载体的课程实施方案.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-021,南京大学公共教室调度管理办法,南京大学-公共教室调度管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件
-nju-jw-022,南京大学期中期末考试监考注意事项,南京大学-期中期末考试监考注意事项.md,https://jw.nju.edu.cn/9b/8d/c24683a629645/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2024年发布
-nju-jw-023,期末考试期间复习考试的提醒和建议,期末考试期间复习考试的提醒和建议.md,https://jw.nju.edu.cn/9f/3e/c24683a761662/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2025年发布
-nju-jw-024,南京大学本科生院办事流程,南京大学本科生院-办事流程.md,,markdown,本科生院,本科生,4,no,irregular,办事指南
-nju-jw-025,南京大学学生手册（2021版）,南京大学学生手册.md,,markdown,南京大学,本科生,5,no,yearly,2021版 含16项规章制度 部分条款已有2025版更新
-nju-jw-026,南京大学本科生院机构设置,南京大学本科生院-机构设置.md,,markdown,本科生院,全部,5,no,irregular,信息参考
-nju-jw-027,南京大学本科毕业论文（设计）撰写规范、存档实施细则,南京大学-本科毕业论文撰写规范与存档实施细则.md,,pdf,本科生院,本科生,2,no,irregular,DOC格式待解析，毕业论文撰写与存档规定
-nju-jw-028,南京大学本科教务系统缓考申请学生使用手册,南京大学-教务系统缓考申请学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统缓考操作指南
-nju-jw-029,南京大学本科教务系统补考办理学生使用手册,南京大学-教务系统补考办理学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统补考操作指南
-nju-jw-030,南京大学本科教务系统学分认定学生使用手册,南京大学-教务系统学分认定学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统学分认定操作指南
-nju-jw-031,学生注册与选课指南（中国大学MOOC平台SPOC专用）,南京大学-MOOC平台SPOC选课指南.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，MOOC平台SPOC课程选课指南
-nju-life-001,南哪助手-宿舍全知道-仙林校区,南哪助手-宿舍全知道-仙林校区.md,https://www.yuque.com/greatnju/q-a/ksf4e5,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-仙林校区宿舍介绍
-nju-life-002,南哪助手-宿舍全知道-鼓楼校区,南哪助手-宿舍全知道-鼓楼校区.md,https://www.yuque.com/greatnju/q-a/lutlp90yd8y59xv3,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-鼓楼校区宿舍介绍
-nju-life-003,南哪助手-校医院及医保就医指南,南哪助手-校医院及医保就医指南.md,https://www.yuque.com/greatnju/q-a/biclkw0cmlmn2vz6,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校医院及医保
-nju-life-004,南哪助手-校园网使用指南,南哪助手-校园网使用指南.md,https://www.yuque.com/greatnju/q-a/vqnpi0,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园网使用
-nju-life-005,南哪助手-入学防诈骗指南,南哪助手-入学防诈骗指南.md,https://www.yuque.com/greatnju/q-a/daxpyo,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-防诈骗提醒
-nju-life-006,南哪助手-校内基础设施,南哪助手-校内基础设施.md,https://www.yuque.com/greatnju/q-a/ne3dzz,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校内设施介绍
-nju-life-007,南哪助手-新生常见问答,南哪助手-新生常见问答.md,https://www.yuque.com/greatnju/q-a/vrkw5d,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-24级常见问答汇总
-nju-life-008,南哪助手-学生证优惠简介,南哪助手-学生证优惠简介.md,https://www.yuque.com/greatnju/q-a/mot973,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-学生证优惠与学生票
-nju-life-009,南哪助手-仙林校区交通指南,南哪助手-仙林校区交通指南.md,https://www.yuque.com/greatnju/q-a/dtdydf,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-仙林校区到校交通
-nju-life-010,南哪助手-鼓楼校区交通指南,南哪助手-鼓楼校区交通指南.md,https://www.yuque.com/greatnju/q-a/vbq9zd,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-鼓楼校区到校交通
-nju-life-011,南哪助手-学生邮箱使用,南哪助手-学生邮箱使用.md,https://www.yuque.com/greatnju/q-a/ofsgzeghamxnvmgu,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-学生邮箱配置使用
-nju-life-012,南哪助手-常用补办说明,南哪助手-常用补办说明.md,https://www.yuque.com/greatnju/q-a/dwtmdg,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园卡学生证等补办
-nju-life-013,南哪助手-助学贷款与绿色通道,南哪助手-助学贷款与绿色通道.md,https://www.yuque.com/greatnju/q-a/dgng2e,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-助学贷款与绿色通道问答
-nju-life-014,南哪助手-校园信息卡及电话卡说明,南哪助手-校园信息卡及电话卡说明.md,https://www.yuque.com/greatnju/q-a/rge9sb,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园卡电话卡防坑
-nju-life-015,南哪助手-军训相关,南哪助手-军训相关.md,https://www.yuque.com/greatnju/q-a/utrc41,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-军训须知
-nju-jw-032,2023年秋季学期补考报名通知,2023年秋季学期补考报名通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,补考报名通知
-nju-jw-033,2024-2025学年第一学期公共课补缓考安排,2024-2025学年第一学期公共课补缓考安排.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,公共课补缓考安排（含缓考不通过处理说明）
-nju-jw-034,2024年度全球科考项目申报通知,2024年度全球科考项目申报通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,yearly,全球科考报名流程
-nju-jw-035,2025-2026学年第二学期公共课补缓考安排,2025-2026学年第二学期公共课补缓考安排.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,公共课补缓考最新安排
-nju-jw-036,2025中荷脑科学全球科考报名通知,2025中荷脑科学全球科考报名通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,irregular,全球科考报名
-nju-jw-037,2025版人才培养方案制订调研,2025版人才培养方案制订调研.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,培养方案学分结构说明
-nju-jw-038,2026中德荷全球科考项目招募通知,2026中德荷全球科考项目招募通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,irregular,全球科考招募
-nju-jw-039,2026届本科毕业生专业准出申请通知,2026届本科毕业生专业准出申请通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,semester,毕业准出申请流程
-nju-jw-040,事项提醒_培养方案汇编通知,事项提醒_培养方案汇编通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,培养方案汇编学分结构
-nju-jw-041,交流学习成绩认定流程,交流学习成绩认定流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,交换成绩认定流程及申诉
-nju-jw-042,交流学习课程认定及学分转换申请通知,交流学习课程认定及学分转换申请通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,课程认定及学分转换
-nju-jw-043,成绩更正流程,成绩更正流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,成绩更正申请流程
-nju-jw-044,本科生管理规章制度_2025版,本科生管理规章制度_2025版.md,,pdf,本科生院,本科生,1,no,yearly,现行最新版校级规章制度汇编
-nju-jw-045,缓考办理流程,缓考办理流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,缓考办理详细流程
-nju-jw-046,辅修相关_学生手册节选,辅修相关_学生手册节选.md,,pdf,本科生院,本科生,4,no,irregular,辅修课程冲突及第二专业说明
-nju-life-016,南哪助手-食堂餐饮指南,南哪助手-食堂餐饮指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-食堂餐饮
-nju-life-017,南哪助手-图书馆使用指南,南哪助手-图书馆使用指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-图书馆使用
-nju-life-018,南哪助手-校车班车指南,南哪助手-校车班车指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-校车班车
-nju-life-019,南哪助手-体育场馆指南,南哪助手-体育场馆指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-体育场馆
-nju-life-020,南哪助手-快递收发指南,南哪助手-快递收发指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-快递收发
-nju-life-021,南哪助手-心理咨询指南,南哪助手-心理咨询指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-心理咨询
-nju-life-022,南哪助手-奖助学金指南,南哪助手-奖助学金指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-奖助学金
-nju-jw-047,本科生管理规章制度2014版,nju-jw-本科生管理规章制度2014版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-2014版（历史版本）
-nju-jw-048,本科生管理规章制度过渡版,nju-jw-本科生管理规章制度过渡版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-过渡版（历史版本）
-nju-edu-001,南京大学本科培养体系,nju-edu-南京大学本科培养体系.md,,markdown,本科生院,本科生,1,no,yearly,南大本科培养体系介绍 三三制三元四维书院制通识教育导师制 综合自南大官网及招生公众号
-nju-edu-002,南京大学本科专业方向与拔尖项目,nju-edu-南京大学本科专业方向与拔尖项目.md,,markdown,本科生院,本科生,1,no,yearly,64个国家级一流本科专业名单 拔尖计划强基计划至诚计划双学士学位 综合自南大官网及招生公众号
-nju-edu-003,南京大学苏州校区与新工科,nju-edu-南京大学苏州校区与新工科.md,,markdown,本科生院,本科生,2,no,yearly,苏州校区新工科 机器人与自动化学院集成电路智能科学碳中和 综合自南大官网及招生公众号
-nju-guide-001,南京大学本科招生政策与录取规则,nju-guide-招生政策与录取规则.md,,markdown,本科生院,本科生,2,no,yearly,招生政策与录取规则 综合自南大招生章程及招生网
-nju-guide-002,南京大学2025年新生入学指南,nju-guide-2025新生入学指南.md,,markdown,本科生院,本科生,2,no,yearly,新生入学全流程指南 含报到材料户口档案体检等
-nju-guide-003,南京大学本科生二次选拔方案,nju-guide-二次选拔方案.md,,markdown,本科生院,本科生,2,no,yearly,二次选拔机制说明 拔尖计划交叉实验班基地班
-nju-guide-004,南京大学转专业指南,nju-guide-转专业指南.md,,markdown,本科生院,本科生,2,no,yearly,转专业政策条件流程 GPA要求笔试面试攻略
-nju-guide-005,南京大学保研推免指南,nju-guide-保研推免指南.md,,markdown,本科生院,本科生,2,no,yearly,保研推免条件名额 夏令营跨专业推免
-nju-guide-006,南京大学学生社团指南,nju-guide-学生社团指南.md,,markdown,综合整理,本科生,4,no,yearly,学生社团介绍 百团大战招新 社团类型与加入方式
-nju-guide-007,南京大学学生会与校园活动,nju-guide-学生会与校园活动.md,,markdown,综合整理,本科生,4,no,yearly,学生会组织架构 品牌校园活动十大歌星校运会迎新晚会
-nju-guide-008,南京大学境外交换项目指南,nju-guide-境外交换项目指南.md,,markdown,本科生院,本科生,3,no,yearly,境外交换学习项目 学期交换暑期交流 申请流程
-nju-guide-009,南京大学CSC与语言考试指南,nju-guide-CSC与语言考试.md,,markdown,综合整理,本科生,3,no,yearly,国家留学基金委项目 托福雅思GRE语言考试资源
-nju-guide-010,南京大学统一身份认证指南,nju-guide-统一身份认证指南.md,,markdown,综合整理,本科生,3,no,yearly,统一身份认证激活 账号密码管理 安全设置
-nju-guide-011,南京大学APP与企业微信指南,nju-guide-南大APP与企业微信.md,,markdown,综合整理,本科生,3,no,yearly,南哪APP企业微信 移动端校园服务入口
-nju-guide-012,南京大学学生办事流程指南,nju-guide-学生办事流程指南.md,,markdown,综合整理,本科生,3,no,yearly,网上办事大厅 常用办事流程 教务处业务办理
-nju-guide-013,南京大学校园卡与电子邮箱,nju-guide-校园卡与电子邮箱.md,,markdown,综合整理,本科生,3,no,yearly,校园卡办理充值挂失 学生邮箱配置使用
-nju-guide-014,南京大学校园网络与正版软件,nju-guide-校园网络与正版软件.md,,markdown,综合整理,本科生,3,no,yearly,校园网接入 PJSD密码正版软件下载 信息化资源
-nju-guide-015,南京大学VPN配置指南,nju-guide-VPN配置指南.md,,markdown,综合整理,本科生,3,no,yearly,校外访问校内资源VPN配置方法
-nju-guide-016,南京大学体测标准与体育课攻略,nju-guide-体测标准与体育课攻略.md,,markdown,综合整理,本科生,4,no,yearly,体质健康测试标准 体育课选课攻略 体育场馆预约
-nju-guide-017,南京大学考研政策指南,nju-guide-考研政策指南.md,,markdown,综合整理,本科生,4,no,yearly,本校考研政策 研究生招生信息 备考资源
-nju-guide-018,南京大学校区周边生活指南,nju-guide-校区周边生活指南.md,,markdown,综合整理,本科生,4,no,irregular,校区周边商圈医院银行 生活服务设施
-nju-guide-019,南京大学2025-2026学年校历,nju-guide-2025-2026学年校历.md,,markdown,本科生院,本科生,3,no,yearly,学期起止日期 放假安排 重要时间节点
-nju-guide-020,南京大学校园安全指南,nju-guide-校园安全指南.md,,markdown,综合整理,本科生,2,no,irregular,保卫处联系方式 紧急情况处理 实验室安全 自然灾害应对
-nju-guide-021,南京大学浦口校区指南,nju-guide-浦口校区指南.md,,markdown,综合整理,本科生,3,no,irregular,浦口校区生活设施 学习环境 交通出行
-nju-guide-022,南京大学国家奖学金评审办法,nju-guide-国家奖学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家奖学金申请条件与评审流程
-nju-guide-023,南京大学国家励志奖学金评审办法,nju-guide-国家励志奖学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家励志奖学金申请条件与评审
-nju-guide-024,南京大学国家助学金评审办法,nju-guide-国家助学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家助学金申请条件与评审流程
-nju-guide-025,南京大学助学金管理办法,nju-guide-助学金管理办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 助学金管理办法
-nju-guide-026,南京大学学生资助政策简介2024,nju-guide-学生资助政策简介2024.md,,markdown,本科生院,本科生,2,no,yearly,学生资助政策全览 奖助贷勤补免全方位
-nju-guide-027,南京大学家庭经济困难学生认定办法,nju-guide-家庭经济困难学生认定办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 家庭经济困难学生认定标准与程序
-nju-guide-028,南京大学本科生学费减免实施办法,nju-guide-本科生学费减免实施办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 学费减免条件与申请程序
-nju-guide-029,南京大学学生临时困难补助管理暂行办法,nju-guide-临时困难补助管理办法.md,,markdown,本科生院,本科生,2,no,irregular,现行政策性文件 临时困难补助申请条件与发放标准
-nju-guide-030,南京大学各项助学金申请条件汇总,nju-guide-助学金申请条件汇总.md,,markdown,本科生院,本科生,3,no,yearly,各类助学金申请条件及材料要求汇总参考
-nju-guide-031,南京大学学生助学金申请表参考,nju-guide-助学金申请表参考.md,,markdown,本科生院,本科生,4,no,irregular,助学金申请表模板 仅供参考
-nju-guide-032,南京大学2024级本科生二次选拔方案,nju-guide-2024级二次选拔方案.md,,markdown,本科生院,本科生,2,no,yearly,2024级二次选拔官方通知 拔尖计划交叉实验班口腔医学
+source_id,title,filename,url,source_type,department,scope,priority,need_login,update_frequency,note,topics,crawl_url,crawl_method,crawl_frequency,last_crawled_at,content_hash,stale_after_days,auth_required,chunk_strategy
+nju-jw-001,南京大学普通全日制本科生学籍管理细则,南京大学-学籍管理细则.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南字发〔2025〕153号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-002,南京大学全日制本科生考试管理办法,南京大学-考试管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-003,南京大学本科课程成绩管理规定,南京大学-成绩管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-004,南京大学普通全日制本科生缓考管理规定,南京大学-缓考管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南本院〔2025〕78号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-005,南京大学普通全日制本科生补考和重修管理规定,南京大学-补考和重修管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南本院〔2025〕76号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-006,南京大学本科课程选课管理办法,南京大学-选课管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-007,南京大学学士学位授予实施办法,南京大学-学士学位授予实施办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-008,南京大学本科生学业预警及帮扶管理办法,南京大学-学业预警及帮扶管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-009,南京大学本科实习实训课程考核管理办法,南京大学-实习实训课程考核管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-010,南京大学关于本科毕业论文（设计）工作的若干规定,南京大学-本科毕业论文（设计）工作若干规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-011,南京大学本科学科专业准入实施管理办法,南京大学-学科专业准入实施管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-012,南京大学普通全日制本科生休学创业管理办法,南京大学-休学创业管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-013,南京大学本科生创新创业学分管理办法（试行）,南京大学-创新创业学分管理办法（试行）.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-014,南京大学交换生课程认定与学分转换管理办法,南京大学-交换培养与课程认定管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件 交换培养,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-015,南京大学本科生修读辅修专业管理细则,南京大学-修读辅修专业管理细则.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件 辅修,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-016,南京大学五育项目实施方案,南京大学-五育项目实施方案.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-017,南京大学本科生劳动教育学分管理办法,南京大学-劳动教育学分管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-018,南京大学本科生全球科考与科研训练项目管理办法,南京大学-全球科考与科研训练项目管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-019,南京大学本科生全球科考赴国（境）外学生准则,南京大学-全球科考赴国境外学生准则.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-020,南京大学以项目为载体的课程实施方案,南京大学-以项目为载体的课程实施方案.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-021,南京大学公共教室调度管理办法,南京大学-公共教室调度管理办法.md,,markdown,本科生院,本科生,2,no,semester,本科生院正式文件,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-022,南京大学期中期末考试监考注意事项,南京大学-期中期末考试监考注意事项.md,https://jw.nju.edu.cn/9b/8d/c24683a629645/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2024年发布,本科生院,https://jw.nju.edu.cn/9b/8d/c24683a629645/page.htm,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-023,期末考试期间复习考试的提醒和建议,期末考试期间复习考试的提醒和建议.md,https://jw.nju.edu.cn/9f/3e/c24683a761662/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2025年发布,本科生院,https://jw.nju.edu.cn/9f/3e/c24683a761662/page.htm,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-024,南京大学本科生院办事流程,南京大学本科生院-办事流程.md,,markdown,本科生院,本科生,4,no,irregular,办事指南,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-025,南京大学学生手册（2021版）,南京大学学生手册.md,,markdown,南京大学,本科生,5,no,yearly,2021版 含16项规章制度 部分条款已有2025版更新,南京大学,,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-026,南京大学本科生院机构设置,南京大学本科生院-机构设置.md,,markdown,本科生院,全部,5,no,irregular,信息参考,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-027,南京大学本科毕业论文（设计）撰写规范、存档实施细则,南京大学-本科毕业论文撰写规范与存档实施细则.md,,pdf,本科生院,本科生,2,no,irregular,DOC格式待解析，毕业论文撰写与存档规定,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-028,南京大学本科教务系统缓考申请学生使用手册,南京大学-教务系统缓考申请学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统缓考操作指南,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-029,南京大学本科教务系统补考办理学生使用手册,南京大学-教务系统补考办理学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统补考操作指南,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-030,南京大学本科教务系统学分认定学生使用手册,南京大学-教务系统学分认定学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统学分认定操作指南,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-031,学生注册与选课指南（中国大学MOOC平台SPOC专用）,南京大学-MOOC平台SPOC选课指南.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，MOOC平台SPOC课程选课指南,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-life-001,南哪助手-宿舍全知道-仙林校区,南哪助手-宿舍全知道-仙林校区.md,https://www.yuque.com/greatnju/q-a/ksf4e5,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-仙林校区宿舍介绍,南哪助手,https://www.yuque.com/greatnju/q-a/ksf4e5,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-002,南哪助手-宿舍全知道-鼓楼校区,南哪助手-宿舍全知道-鼓楼校区.md,https://www.yuque.com/greatnju/q-a/lutlp90yd8y59xv3,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-鼓楼校区宿舍介绍,南哪助手,https://www.yuque.com/greatnju/q-a/lutlp90yd8y59xv3,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-003,南哪助手-校医院及医保就医指南,南哪助手-校医院及医保就医指南.md,https://www.yuque.com/greatnju/q-a/biclkw0cmlmn2vz6,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校医院及医保,南哪助手,https://www.yuque.com/greatnju/q-a/biclkw0cmlmn2vz6,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-004,南哪助手-校园网使用指南,南哪助手-校园网使用指南.md,https://www.yuque.com/greatnju/q-a/vqnpi0,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园网使用,南哪助手,https://www.yuque.com/greatnju/q-a/vqnpi0,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-005,南哪助手-入学防诈骗指南,南哪助手-入学防诈骗指南.md,https://www.yuque.com/greatnju/q-a/daxpyo,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-防诈骗提醒,南哪助手,https://www.yuque.com/greatnju/q-a/daxpyo,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-006,南哪助手-校内基础设施,南哪助手-校内基础设施.md,https://www.yuque.com/greatnju/q-a/ne3dzz,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校内设施介绍,南哪助手,https://www.yuque.com/greatnju/q-a/ne3dzz,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-007,南哪助手-新生常见问答,南哪助手-新生常见问答.md,https://www.yuque.com/greatnju/q-a/vrkw5d,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-24级常见问答汇总,南哪助手,https://www.yuque.com/greatnju/q-a/vrkw5d,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-008,南哪助手-学生证优惠简介,南哪助手-学生证优惠简介.md,https://www.yuque.com/greatnju/q-a/mot973,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-学生证优惠与学生票,南哪助手,https://www.yuque.com/greatnju/q-a/mot973,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-009,南哪助手-仙林校区交通指南,南哪助手-仙林校区交通指南.md,https://www.yuque.com/greatnju/q-a/dtdydf,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-仙林校区到校交通,南哪助手,https://www.yuque.com/greatnju/q-a/dtdydf,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-010,南哪助手-鼓楼校区交通指南,南哪助手-鼓楼校区交通指南.md,https://www.yuque.com/greatnju/q-a/vbq9zd,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-鼓楼校区到校交通,南哪助手,https://www.yuque.com/greatnju/q-a/vbq9zd,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-011,南哪助手-学生邮箱使用,南哪助手-学生邮箱使用.md,https://www.yuque.com/greatnju/q-a/ofsgzeghamxnvmgu,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-学生邮箱配置使用,南哪助手,https://www.yuque.com/greatnju/q-a/ofsgzeghamxnvmgu,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-012,南哪助手-常用补办说明,南哪助手-常用补办说明.md,https://www.yuque.com/greatnju/q-a/dwtmdg,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园卡学生证等补办,南哪助手,https://www.yuque.com/greatnju/q-a/dwtmdg,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-013,南哪助手-助学贷款与绿色通道,南哪助手-助学贷款与绿色通道.md,https://www.yuque.com/greatnju/q-a/dgng2e,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-助学贷款与绿色通道问答,南哪助手,https://www.yuque.com/greatnju/q-a/dgng2e,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-014,南哪助手-校园信息卡及电话卡说明,南哪助手-校园信息卡及电话卡说明.md,https://www.yuque.com/greatnju/q-a/rge9sb,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-校园卡电话卡防坑,南哪助手,https://www.yuque.com/greatnju/q-a/rge9sb,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-015,南哪助手-军训相关,南哪助手-军训相关.md,https://www.yuque.com/greatnju/q-a/utrc41,markdown,南哪助手,本科生,4,no,irregular,新生生活指南-军训须知,南哪助手,https://www.yuque.com/greatnju/q-a/utrc41,manual,on_demand,2026-05-30,,365,false,qa
+nju-jw-032,2023年秋季学期补考报名通知,2023年秋季学期补考报名通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,补考报名通知,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-033,2024-2025学年第一学期公共课补缓考安排,2024-2025学年第一学期公共课补缓考安排.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,公共课补缓考安排（含缓考不通过处理说明）,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-034,2024年度全球科考项目申报通知,2024年度全球科考项目申报通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,yearly,全球科考报名流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-035,2025-2026学年第二学期公共课补缓考安排,2025-2026学年第二学期公共课补缓考安排.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,semester,公共课补缓考最新安排,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,heading
+nju-jw-036,2025中荷脑科学全球科考报名通知,2025中荷脑科学全球科考报名通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,irregular,全球科考报名,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-037,2025版人才培养方案制订调研,2025版人才培养方案制订调研.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,培养方案学分结构说明,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-038,2026中德荷全球科考项目招募通知,2026中德荷全球科考项目招募通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,3,no,irregular,全球科考招募,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-039,2026届本科毕业生专业准出申请通知,2026届本科毕业生专业准出申请通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,semester,毕业准出申请流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-040,事项提醒_培养方案汇编通知,事项提醒_培养方案汇编通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,培养方案汇编学分结构,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-041,交流学习成绩认定流程,交流学习成绩认定流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,交换成绩认定流程及申诉,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-042,交流学习课程认定及学分转换申请通知,交流学习课程认定及学分转换申请通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,课程认定及学分转换,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-043,成绩更正流程,成绩更正流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,成绩更正申请流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-044,本科生管理规章制度_2025版,本科生管理规章制度_2025版.md,,pdf,本科生院,本科生,1,no,yearly,现行最新版校级规章制度汇编,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-045,缓考办理流程,缓考办理流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,缓考办理详细流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-046,辅修相关_学生手册节选,辅修相关_学生手册节选.md,,pdf,本科生院,本科生,4,no,irregular,辅修课程冲突及第二专业说明,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-life-016,南哪助手-食堂餐饮指南,南哪助手-食堂餐饮指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-食堂餐饮,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-017,南哪助手-图书馆使用指南,南哪助手-图书馆使用指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-图书馆使用,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-018,南哪助手-校车班车指南,南哪助手-校车班车指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-校车班车,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-019,南哪助手-体育场馆指南,南哪助手-体育场馆指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-体育场馆,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-020,南哪助手-快递收发指南,南哪助手-快递收发指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-快递收发,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-021,南哪助手-心理咨询指南,南哪助手-心理咨询指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-心理咨询,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-life-022,南哪助手-奖助学金指南,南哪助手-奖助学金指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-奖助学金,南哪助手,,manual,on_demand,2026-05-30,,365,false,qa
+nju-jw-047,本科生管理规章制度2014版,nju-jw-本科生管理规章制度2014版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-2014版（历史版本）,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-jw-048,本科生管理规章制度过渡版,nju-jw-本科生管理规章制度过渡版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-过渡版（历史版本）,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-edu-001,南京大学本科培养体系,nju-edu-南京大学本科培养体系.md,,markdown,本科生院,本科生,1,no,yearly,南大本科培养体系介绍 三三制三元四维书院制通识教育导师制 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-edu-002,南京大学本科专业方向与拔尖项目,nju-edu-南京大学本科专业方向与拔尖项目.md,,markdown,本科生院,本科生,1,no,yearly,64个国家级一流本科专业名单 拔尖计划强基计划至诚计划双学士学位 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-edu-003,南京大学苏州校区与新工科,nju-edu-南京大学苏州校区与新工科.md,,markdown,本科生院,本科生,2,no,yearly,苏州校区新工科 机器人与自动化学院集成电路智能科学碳中和 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,,365,false,article
+nju-guide-001,南京大学本科招生政策与录取规则,nju-guide-招生政策与录取规则.md,,markdown,本科生院,本科生,2,no,yearly,招生政策与录取规则 综合自南大招生章程及招生网,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-002,南京大学2025年新生入学指南,nju-guide-2025新生入学指南.md,,markdown,本科生院,本科生,2,no,yearly,新生入学全流程指南 含报到材料户口档案体检等,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-003,南京大学本科生二次选拔方案,nju-guide-二次选拔方案.md,,markdown,本科生院,本科生,2,no,yearly,二次选拔机制说明 拔尖计划交叉实验班基地班,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-004,南京大学转专业指南,nju-guide-转专业指南.md,,markdown,本科生院,本科生,2,no,yearly,转专业政策条件流程 GPA要求笔试面试攻略,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-005,南京大学保研推免指南,nju-guide-保研推免指南.md,,markdown,本科生院,本科生,2,no,yearly,保研推免条件名额 夏令营跨专业推免,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-006,南京大学学生社团指南,nju-guide-学生社团指南.md,,markdown,综合整理,本科生,4,no,yearly,学生社团介绍 百团大战招新 社团类型与加入方式,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-007,南京大学学生会与校园活动,nju-guide-学生会与校园活动.md,,markdown,综合整理,本科生,4,no,yearly,学生会组织架构 品牌校园活动十大歌星校运会迎新晚会,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-008,南京大学境外交换项目指南,nju-guide-境外交换项目指南.md,,markdown,本科生院,本科生,3,no,yearly,境外交换学习项目 学期交换暑期交流 申请流程,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-009,南京大学CSC与语言考试指南,nju-guide-CSC与语言考试.md,,markdown,综合整理,本科生,3,no,yearly,国家留学基金委项目 托福雅思GRE语言考试资源,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-010,南京大学统一身份认证指南,nju-guide-统一身份认证指南.md,,markdown,综合整理,本科生,3,no,yearly,统一身份认证激活 账号密码管理 安全设置,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-011,南京大学APP与企业微信指南,nju-guide-南大APP与企业微信.md,,markdown,综合整理,本科生,3,no,yearly,南哪APP企业微信 移动端校园服务入口,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-012,南京大学学生办事流程指南,nju-guide-学生办事流程指南.md,,markdown,综合整理,本科生,3,no,yearly,网上办事大厅 常用办事流程 教务处业务办理,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-013,南京大学校园卡与电子邮箱,nju-guide-校园卡与电子邮箱.md,,markdown,综合整理,本科生,3,no,yearly,校园卡办理充值挂失 学生邮箱配置使用,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-014,南京大学校园网络与正版软件,nju-guide-校园网络与正版软件.md,,markdown,综合整理,本科生,3,no,yearly,校园网接入 PJSD密码正版软件下载 信息化资源,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-015,南京大学VPN配置指南,nju-guide-VPN配置指南.md,,markdown,综合整理,本科生,3,no,yearly,校外访问校内资源VPN配置方法,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-016,南京大学体测标准与体育课攻略,nju-guide-体测标准与体育课攻略.md,,markdown,综合整理,本科生,4,no,yearly,体质健康测试标准 体育课选课攻略 体育场馆预约,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-017,南京大学考研政策指南,nju-guide-考研政策指南.md,,markdown,综合整理,本科生,4,no,yearly,本校考研政策 研究生招生信息 备考资源,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-018,南京大学校区周边生活指南,nju-guide-校区周边生活指南.md,,markdown,综合整理,本科生,4,no,irregular,校区周边商圈医院银行 生活服务设施,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-019,南京大学2025-2026学年校历,nju-guide-2025-2026学年校历.md,,markdown,本科生院,本科生,3,no,yearly,学期起止日期 放假安排 重要时间节点,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-020,南京大学校园安全指南,nju-guide-校园安全指南.md,,markdown,综合整理,本科生,2,no,irregular,保卫处联系方式 紧急情况处理 实验室安全 自然灾害应对,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-021,南京大学浦口校区指南,nju-guide-浦口校区指南.md,,markdown,综合整理,本科生,3,no,irregular,浦口校区生活设施 学习环境 交通出行,综合整理,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-022,南京大学国家奖学金评审办法,nju-guide-国家奖学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家奖学金申请条件与评审流程,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-023,南京大学国家励志奖学金评审办法,nju-guide-国家励志奖学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家励志奖学金申请条件与评审,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-024,南京大学国家助学金评审办法,nju-guide-国家助学金评审办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 国家助学金申请条件与评审流程,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-025,南京大学助学金管理办法,nju-guide-助学金管理办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 助学金管理办法,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-026,南京大学学生资助政策简介2024,nju-guide-学生资助政策简介2024.md,,markdown,本科生院,本科生,2,no,yearly,学生资助政策全览 奖助贷勤补免全方位,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-027,南京大学家庭经济困难学生认定办法,nju-guide-家庭经济困难学生认定办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 家庭经济困难学生认定标准与程序,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-028,南京大学本科生学费减免实施办法,nju-guide-本科生学费减免实施办法.md,,markdown,本科生院,本科生,2,no,semester,现行政策性文件 学费减免条件与申请程序,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-029,南京大学学生临时困难补助管理暂行办法,nju-guide-临时困难补助管理办法.md,,markdown,本科生院,本科生,2,no,irregular,现行政策性文件 临时困难补助申请条件与发放标准,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-030,南京大学各项助学金申请条件汇总,nju-guide-助学金申请条件汇总.md,,markdown,本科生院,本科生,3,no,yearly,各类助学金申请条件及材料要求汇总参考,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-031,南京大学学生助学金申请表参考,nju-guide-助学金申请表参考.md,,markdown,本科生院,本科生,4,no,irregular,助学金申请表模板 仅供参考,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-032,南京大学2024级本科生二次选拔方案,nju-guide-2024级二次选拔方案.md,,markdown,本科生院,本科生,2,no,yearly,2024级二次选拔官方通知 拔尖计划交叉实验班口腔医学,本科生院,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-033,南京大学校园安全与紧急联系方式,nju-guide-校园安全与紧急联系.md,,markdown,保卫处,本科生,1,no,yearly,E.3 补充：安全须知，覆盖报警电话、消防、实验室安全、防诈骗,校园安全,,manual,on_demand,2026-05-30,,365,false,heading
+nju-guide-034,南京大学学生社团与校园活动指南,nju-guide-学生社团与校园活动.md,,markdown,校团委,本科生,3,no,yearly,E.3 补充：社团与校园活动，覆盖百团大战、社团数量限制、学生会区别,学生社团,,manual,on_demand,2026-05-30,,365,false,qa
+nju-guide-035,南京大学校历与学期安排,nju-guide-校历与学期安排.md,,markdown,本科生院,本科生,1,no,yearly,E.3 补充：校历解读，覆盖学期安排、寒暑假时长、小学期、重要时间节点,校历,,manual,on_demand,2026-05-30,,365,false,qa
+nju-guide-036,南京大学选课常见问题FAQ,nju-guide-选课常见问题FAQ.md,,markdown,本科生院,本科生,2,no,semester,E.3 补充：选课FAQ，覆盖选课学分上限、时间、冲突处理,选课,,manual,on_demand,2026-05-30,,365,false,qa
+nju-guide-037,南京大学重修与补考详细说明,nju-guide-重修与补考详细说明.md,,markdown,本科生院,本科生,2,no,semester,E.3 补充：重修补考详细流程，覆盖不能补考的课程类型、重修费用说明,重修;补考,,manual,on_demand,2026-05-30,,365,false,qa

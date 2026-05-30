@@ -1,13 +1,13 @@
 {
-  "evaluated_at": "2026-05-30 19:29:17",
+  "evaluated_at": "2026-05-30 19:44:30",
   "judge_model": "qwen3:8b-nothink",
   "results_file": "/mnt/c/Users/Mr.tree/Desktop/nju-rule-rag/nju-rule-rag/data/eval/results.csv",
   "total_answers": 118,
   "judged": 118,
   "success": 118,
   "errors": 0,
-  "avg_faithfulness": 2.69,
-  "avg_relevance": 4.07,
-  "avg_refusal_correctness": 4.66,
-  "overall_score": 3.81
+  "avg_faithfulness": 2.75,
+  "avg_relevance": 4.24,
+  "avg_refusal_correctness": 4.78,
+  "overall_score": 3.92
 }
