@@ -154,6 +154,13 @@ class RAGPipeline:
         if self._settings.enable_citation_verify:
             citation_warnings.extend(self._verify_citations(answer_text, top_chunks))
 
+        # 10.5. Tier 2: strip sentences with no source support (A.3 post-processing)
+        if confidence_tier == "2":
+            stripped, removal_warnings = self._strip_unsupported_sentences(answer_text, top_chunks)
+            if removal_warnings:
+                answer_text = stripped
+                citation_warnings.extend(removal_warnings)
+
         # 11. Format final response
         t0 = time.time()
         result = self._format_response(
@@ -470,22 +477,25 @@ class RAGPipeline:
 
     # ── Two-stage generation ────────────────────────────────────
 
-    EXTRACT_PROMPT = """从以下校规资料中，提取与问题相关的关键事实。只提取具体信息：数字、日期、时长、金额、网址、系统名称、操作步骤、条件要求。一句话一条，不要完整段落。如果资料不包含相关信息，回复"无相关事实"。
+    EXTRACT_PROMPT = """从以下校规资料中，提取与问题直接相关的关键事实。
+规则：
+- 只提取资料中明确写出的信息。数字（学分、金额、日期、时长）、网址、系统名称、操作步骤、条件要求。
+- 一条事实一行。只写资料里有的，资料没有的绝对不写。
+- 如果资料完全不包含相关信息，回复"无相关事实"。
 
 资料：
 {context}
 
 问题：{question}
-关键事实（逐条罗列）："""
+关键事实："""
 
-    REWRITE_PROMPT = """你是南大学长。用学弟学妹能听懂的大白话，把以下校规信息解释清楚。
+    REWRITE_PROMPT = """你是南大学长。用学弟学妹能听懂的大白话，**只用下面列出的事实信息**来回答问题。
 
-规则：
-1. 先1-2句话直接回答问题
-2. 分点列出怎么做（去哪、找谁、什么时候前、要什么材料）
-3. 禁止出现"根据规定""资料显示""校规要求"等官话
-4. 如果事实中有数字、日期、网址，必须写出来
-5. 200字以内
+铁律：
+1. 只能使用下面"事实信息"里明确写出的内容。不在事实列表里的数字、日期、金额、网址绝对不写。
+2. 如果事实信息不完整（比如只有流程没有具体时间），诚实说"具体时间看教务系统通知"——不要自己填一个。
+3. 语气自然，像学长跟学弟学妹聊天。200字以内。
+4. 禁止"根据规定""资料显示"等官话。
 
 事实信息：
 {facts}
@@ -580,6 +590,56 @@ class RAGPipeline:
         }
 
     # ── Helpers ─────────────────────────────────────────────────
+
+    def _strip_unsupported_sentences(
+        self, answer: str, chunks: list[dict], threshold: float = 0.05
+    ) -> tuple[str, list[str]]:
+        """Remove sentences with near-zero bigram overlap against source chunks.
+
+        For Tier 2 answers where the LLM may still fabricate despite hedge prompts,
+        this acts as a safety net: sentences that share < threshold bigrams with
+        any source chunk are simply dropped.
+        """
+        import re
+        if not chunks:
+            return answer, []
+
+        # Build source bigram set
+        source_bigrams: set[str] = set()
+        for c in chunks:
+            content = c.get("content", "")
+            for i in range(len(content) - 1):
+                source_bigrams.add(content[i:i + 2])
+
+        if not source_bigrams:
+            return answer, []
+
+        sentences = re.split(r"(?<=[。！？\n])", answer)
+        kept = []
+        removed = []
+        for sent in sentences:
+            sent = sent.strip()
+            if len(sent) < 8:  # keep short fragments (connectors, transitions)
+                if sent:
+                    kept.append(sent)
+                continue
+            sent_bigrams: set[str] = set()
+            for i in range(len(sent) - 1):
+                sent_bigrams.add(sent[i:i + 2])
+            if not sent_bigrams:
+                kept.append(sent)
+                continue
+            overlap = len(sent_bigrams & source_bigrams) / len(sent_bigrams)
+            if overlap >= threshold:
+                kept.append(sent)
+            else:
+                removed.append(sent[:60] + "...")
+
+        warnings = []
+        if removed:
+            warnings.append(f"[A.3] 移除{len(removed)}句无来源支撑的内容")
+
+        return "".join(kept).strip(), warnings
 
     def _fact_check_entities(
         self, answer: str, chunks: list[dict]
