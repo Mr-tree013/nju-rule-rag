@@ -136,19 +136,21 @@ except Exception:
 # ── 5. Proxy environment ────────────────────────────────────────
 
 header("5. 代理变量")
-proxy_vars = [
-    "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
-    "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy",
-]
-leaked = {k: v for k, v in os.environ.items() if k in proxy_vars and v}
-if leaked:
-    fail(
-        f"检测到代理环境变量: {', '.join(leaked.keys())}\n"
-        "    请在启动前执行: unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy\n"
-        "    或使用 ./scripts/start_server.sh 一键启动（自动清理）"
-    )
+proxy_vars = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]
+active_proxy = {k: v for k, v in os.environ.items() if k in proxy_vars and v}
+no_proxy = os.getenv("NO_PROXY") or os.getenv("no_proxy") or ""
+
+if active_proxy:
+    has_localhost = "localhost" in no_proxy or "127.0.0.1" in no_proxy
+    if has_localhost:
+        ok(f"代理已配置: {', '.join(f'{k}={v[:30]}...' for k, v in active_proxy.items())}, NO_PROXY 已排除本地服务")
+    else:
+        warn(
+            f"代理已配置但 NO_PROXY 未包含 localhost，可能影响 Ollama 连接\n"
+            "    建议: export NO_PROXY=localhost,127.0.0.1"
+        )
 else:
-    ok("无残留代理变量")
+    warn("未检测到代理 — HuggingFace 下载/检查可能失败（如仅用缓存则无影响）")
 
 # ── 6. Index files ──────────────────────────────────────────────
 

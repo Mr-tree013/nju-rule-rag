@@ -58,6 +58,7 @@ class CrossEncoderReranker:
             print(f"[Reranker] Loading {self._model_name} on {device} ...")
             self._model = CrossEncoder(
                 self._model_name, device=device,
+                local_files_only=True,
             )
             if device == "cpu":
                 self._gpu_lock = threading.Lock()  # no-op lock for CPU

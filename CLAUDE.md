@@ -196,7 +196,7 @@ LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ./scripts/start_server.sh --reload  # dev mode
 ```
 
-The script auto-clears proxy vars, sets `HF_HUB_OFFLINE=1`, `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, activates venv, and runs preflight checks before starting uvicorn.
+The script preserves proxy vars (for HuggingFace/DeepSeek access), sets `NO_PROXY=localhost,127.0.0.1` to exclude local Ollama, enables `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, activates venv, and runs preflight checks before starting uvicorn.
 
 **Preflight diagnostics** (run without starting server):
 
@@ -204,7 +204,9 @@ The script auto-clears proxy vars, sets `HF_HUB_OFFLINE=1`, `PYTORCH_CUDA_ALLOC_
 python scripts/preflight_check.py
 ```
 
-Checks: CUDA, model weights, Ollama, VRAM, proxy vars, index files.
+Checks: CUDA, model weights, Ollama, VRAM, proxy vars (OK if set with NO_PROXY covering localhost), index files.
+
+**Proxy setup**: WSL2 inherits Windows proxy settings. External access (HuggingFace, DeepSeek fallback) needs proxy; local Ollama must bypass it. `start_server.sh` handles this automatically — sets `NO_PROXY=localhost,127.0.0.1` and preserves existing proxy vars.
 
 **Ollama server environment** (must be set where `ollama serve` runs):
 

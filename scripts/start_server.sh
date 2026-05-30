@@ -6,9 +6,9 @@
 #   ./scripts/start_server.sh --reload      # dev mode with auto-reload
 #   ./scripts/start_server.sh --port 9000   # custom port
 #
-# This script replaces the manual startup checklist.  It:
-#   1. Clears stale proxy env vars (WSL → Windows proxy leak)
-#   2. Sets HuggingFace offline mode
+# This script:
+#   1. Preserves proxy env vars for HuggingFace access (WSL inherits from Windows)
+#   2. Excludes local services (Ollama) from proxy
 #   3. Enables PyTorch expandable_segments (GPU memory fragmentation fix)
 #   4. Activates the Python venv
 #   5. Runs preflight checks
@@ -19,22 +19,21 @@ cd "$(dirname "$0")/.."
 
 echo "=== NJU Rule RAG — starting server ==="
 
-# ── 1. Clear stale proxy vars ─────────────────────────────────────
-# Windows system proxy leaks into WSL2 and breaks HuggingFace requests.
-echo "[env] Clearing proxy variables..."
-unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
-unset ALL_PROXY all_proxy NO_PROXY no_proxy
-# also unset uppercase variants that some tools read
-unset HTTP_PROXY HTTPS_PROXY HTTP_PROXY http_proxy HTTP_PROXY HTTPS_PROXY 2>/dev/null || true
+# ── 1. Proxy ────────────────────────────────────────────────────
+# WSL2 inherits Windows proxy settings.  HuggingFace model checks need
+# external access, so we keep HTTP_PROXY / HTTPS_PROXY if present.
+# Local services (Ollama) MUST bypass the proxy.
+echo "[env] Proxy: HTTP_PROXY=${HTTP_PROXY:-unset} HTTPS_PROXY=${HTTPS_PROXY:-unset}"
+export NO_PROXY="localhost,127.0.0.1,.local,ollama,host.docker.internal${NO_PROXY:+,$NO_PROXY}"
+export no_proxy="$NO_PROXY"
 
-# ── 2. HuggingFace offline ────────────────────────────────────────
-# Prevent HF Hub HEAD requests that hang on dead proxies.
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
+# ── 2. HuggingFace — use network (proxy handles external access) ─
+# No longer forcing HF_HUB_OFFLINE=1; weights should already be cached.
+# If a model needs to download fresh files, the proxy makes it work.
+unset HF_HUB_OFFLINE
+unset TRANSFORMERS_OFFLINE
 
 # ── 3. PyTorch GPU memory optimisation ────────────────────────────
-# expandable_segments reduces CUDA memory fragmentation — critical for
-# long-running servers that hold 3 models in 16GB VRAM.
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # ── 4. Activate venv ──────────────────────────────────────────────
