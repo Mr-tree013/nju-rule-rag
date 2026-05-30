@@ -57,16 +57,20 @@ class LLMClient:
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
+            "stop": ["\n\n来源", "\n来源:", "<|im_end|>", "###", "补充说明"],
         }
         resp = self._request("POST", url, body)
         data = resp.json()
         return data["choices"][0]["message"]["content"]
 
-    def chat_stream(self, messages: list[dict], temperature: float = 0.2):
+    def chat_stream(self, messages: list[dict], temperature: float = 0.2,
+                     max_output_chars: int = 350):
         """Stream chat-completion tokens via SSE.
 
         Yields content deltas as they arrive.  Caller must iterate the
-        generator to receive tokens.
+        generator to receive tokens.  Stops early if output exceeds
+        *max_output_chars* (client-side guard, complements server-side
+        num_predict).
         """
         url = f"{self._base_url}/chat/completions"
         body = {
@@ -74,6 +78,7 @@ class LLMClient:
             "messages": messages,
             "temperature": temperature,
             "stream": True,
+            "stop": ["\n\n来源", "\n来源:", "<|im_end|>", "###", "补充说明"],
         }
         resp = requests.post(
             url, headers=self._headers, json=body,
@@ -85,6 +90,7 @@ class LLMClient:
                     f"LLM stream API 返回 {resp.status_code}: {resp.text[:300]}",
                     status_code=resp.status_code,
                 )
+            char_count = 0
             for line in resp.iter_lines(decode_unicode=True):
                 if not line or not line.startswith("data: "):
                     continue
@@ -97,6 +103,9 @@ class LLMClient:
                     delta = chunk["choices"][0].get("delta", {})
                     content = delta.get("content", "")
                     if content:
+                        char_count += len(content)
+                        if char_count > max_output_chars:
+                            break
                         yield content
                 except (json.JSONDecodeError, KeyError, IndexError):
                     continue

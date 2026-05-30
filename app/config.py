@@ -127,6 +127,23 @@ class Settings:
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     rerank_candidate_k: int = 40
     rerank_top_k: int = 12
+    reranker_device: str = "auto"  # auto | cuda | cpu
+
+    # ── Prompt budget (token-aware context trimming) ────────────
+
+    prompt_token_budget: int = 4096
+    max_chunk_tokens: int = 320
+    max_chunks_in_prompt: int = 6
+
+    # ── GPU memory management ───────────────────────────────────
+
+    empty_cache_every_n_requests: int = 20
+    empty_cache_free_vram_mb: int = 1500
+
+    # ── LLM timeout & circuit breaker ───────────────────────────
+
+    llm_request_timeout_seconds: int = 20
+    llm_ttft_timeout_seconds: int = 5
 
     # ── LLM fallback ─────────────────────────────────────────────
 
@@ -139,7 +156,7 @@ class Settings:
 
     retry_count: int = 3
     retry_delays: tuple = (1, 2, 4)
-    request_timeout: int = 120
+    request_timeout: int = 20
 
     # ── Pipeline ─────────────────────────────────────────────────
 
@@ -217,13 +234,21 @@ def create_settings() -> Settings:
         reranker_model=os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
         rerank_candidate_k=_int("RERANK_CANDIDATE_K", 40),
         rerank_top_k=_int("RERANK_TOP_K", 12),
+        reranker_device=os.getenv("RERANKER_DEVICE", "auto"),
+        prompt_token_budget=_int("PROMPT_TOKEN_BUDGET", 4096),
+        max_chunk_tokens=_int("MAX_CHUNK_TOKENS", 320),
+        max_chunks_in_prompt=_int("MAX_CHUNKS_IN_PROMPT", 6),
+        empty_cache_every_n_requests=_int("EMPTY_CACHE_EVERY_N_REQUESTS", 20),
+        empty_cache_free_vram_mb=_int("EMPTY_CACHE_FREE_VRAM_MB", 1500),
+        llm_request_timeout_seconds=_int("LLM_REQUEST_TIMEOUT_SECONDS", 20),
+        llm_ttft_timeout_seconds=_int("LLM_TTFT_TIMEOUT_SECONDS", 5),
         enable_llm_fallback=os.getenv("ENABLE_LLM_FALLBACK", "false").lower() in ("true", "1", "yes"),
         fallback_llm_api_key=os.getenv("FALLBACK_LLM_API_KEY", ""),
         fallback_llm_base_url=os.getenv("FALLBACK_LLM_BASE_URL", ""),
         fallback_llm_model=os.getenv("FALLBACK_LLM_MODEL", ""),
         retry_count=3,
         retry_delays=(1, 2, 4),
-        request_timeout=_int("LLM_REQUEST_TIMEOUT", 120),
+        request_timeout=_int("LLM_REQUEST_TIMEOUT", 20),
         max_answer_length=600,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         qq_bot_self_id=os.getenv("QQ_BOT_SELF_ID", ""),

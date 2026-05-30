@@ -9,9 +9,24 @@
 # the model to skip reasoning and answer directly.  For RAG use cases we want
 # fast, direct answers — not chain-of-thought reasoning.
 #
-# See ROADMAP.md task 1.1 for the rationale.
+# Parameters hardened per ROADMAP_DEPLOY v0.5.0:
+#   num_ctx 8192    — cap context window to avoid OOM / pathologically slow prefill
+#   num_predict 400 — hard output token cap (~250 中文字 + 余量)
+#   temperature 0.35 — consistent with pipeline (was 0.6, which caused verbosity)
 
 FROM qwen3:8b
+
+PARAMETER num_ctx 8192
+PARAMETER num_predict 400
+PARAMETER temperature 0.35
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "\n\n来源"
+PARAMETER stop "\n来源:"
+PARAMETER stop "参考资料"
+PARAMETER stop "补充说明"
 
 TEMPLATE """
 {{- $lastUserIdx := -1 -}}

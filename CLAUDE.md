@@ -6,16 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.5.0. 105 source documents → 3962 chunks. 118 eval questions. GPU thread-safety fix applied. System prompt rewritten for conversational style. Two-stage generation disabled (merged into single-pass prompt). 122 tests pass. QQ Bot integration.
+**Current status**: v0.5.1. 105 source documents → 3962 chunks. 118 eval questions. Ollama Modelfile hardened (num_ctx 8192, num_predict 400). Prompt token budget + chunk trimming. GPU memory auto-management. Full-link timing instrumentation. Deep health endpoint. QQ Bot integration.
 
 ## Commands
 
 ```bash
 source .venv/bin/activate
 
-# Start dev server — MUST clear proxy env vars first (otherwise HF model checks fail)
-unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
-HF_HUB_OFFLINE=1 uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Start server — one-click (auto-clears proxy, sets GPU env, runs preflight)
+./scripts/start_server.sh
+./scripts/start_server.sh --reload  # dev mode with auto-reload
+
+# Preflight check (diagnose startup issues without starting server)
+python scripts/preflight_check.py
 
 # Run tests
 pytest
@@ -69,14 +72,23 @@ CrossEncoderReranker   BGE-Reranker-v2-m3 (40候选→12精排)
 _filter → _dedup       score阈值过滤 → max 3/source, 12 total
         │
         ▼
-LLM (Qwen3-8B)         temp=0.35, fallback→DeepSeek on failure
+_build_prompt          token预算裁剪 (budget=4096, max 6 chunks, 320/chunk)
+        │               + 高风险题自动追加短系统补丁
+        │
+        ▼
+LLM (Qwen3-8B)         temp=0.35, num_ctx=8192, num_predict=400, stop sequences
+        │  timeout=20s → 超时自动 fallback→DeepSeek
         │  (HTTP I/O — 不加锁，可并发)
         │
         ▼
 [_verify_citations]    答案句bigram与来源重叠度检查（ENABLE_CITATION_VERIFY）
         │
         ▼
-_format_response       长度截断(250字) + 高风险通知(含部门联系方式) + 来源时效性
+_format_response       长度截断(600字) + 高风险模板追加联系方式(NOT LLM生成)
+        │               + 全链路timing打点写入 debug.timing
+        │
+        ▼
+_maybe_free_gpu_cache  N次请求后empty_cache，空闲<1.5GB时强制释放
         │
         ▼
 { question, answer, risk_level, need_human_confirm, sources[], debug }
@@ -85,12 +97,17 @@ _format_response       长度截断(250字) + 高风险通知(含部门联系方
 ### Key module changes since v0.4.0
 
 - **`app/retriever.py`** — `VectorRetriever` added `threading.RLock` around `embedding_model.encode()` to prevent CUDA deadlock from concurrent GPU access. Exposes `gpu_lock` property for sharing with classifier.
-- **`app/reranker.py`** — `CrossEncoderReranker` added `threading.Lock` around `model.predict()`. `_load()` uses double-checked locking to prevent race on model init.
+- **`app/reranker.py`** — `CrossEncoderReranker` added `threading.Lock` around `model.predict()`. `_load()` uses double-checked locking to prevent race on model init. v0.5.1: added `device` parameter for CPU fallback.
 - **`app/policy.py`** — `TwoLayerRiskClassifier` accepts shared `gpu_lock` parameter; uses it around embedding calls to serialize GPU access with retriever.
-- **`app/deps.py`** — Wires the shared GPU lock from retriever to classifier via `retriever._vector.gpu_lock`.
-- **`app/config.py`** — System prompt rewritten: persona changed to "南大学长", added 3 few-shot examples, banned bureaucratic language. `DEFAULT_SYSTEM_PROMPT` is the authoritative prompt.
-- **`app/pipeline.py`** — Generation temperature raised 0.2→0.35 for more natural output. `ENABLE_TWO_STAGE_GENERATION` deprecated (merged into single-pass prompt). LLM call is outside GPU lock (HTTP I/O, concurrent-safe).
-- **`app/llm_client.py`** — `chat_stream()` added `try/finally` to close HTTP response, preventing fd leak.
+- **`app/deps.py`** — Wires the shared GPU lock from retriever to classifier via `retriever._vector.gpu_lock`. v0.5.1: passes `reranker_device` setting.
+- **`app/config.py`** — System prompt rewritten: persona changed to "南大学长", added 3 few-shot examples, banned bureaucratic language. v0.5.1: added prompt budget, GPU memory, timeout, reranker device settings.
+- **`app/pipeline.py`** — Generation temperature raised 0.2→0.35 for more natural output. `ENABLE_TWO_STAGE_GENERATION` deprecated. v0.5.1: token budget trimming, full-link timing, periodic GPU cache cleanup, high-risk short patch.
+- **`app/llm_client.py`** — `chat_stream()` added `try/finally` to close HTTP response. v0.5.1: added stop sequences, stream char limit client-side guard.
+- **`app/health.py`** — (new in v0.5.1) Deep health check aggregating Ollama, GPU, model, index, cache status.
+- **`scripts/start_server.sh`** — (new in v0.5.1) One-click startup with proxy cleanup, GPU env, preflight.
+- **`scripts/preflight_check.py`** — (new in v0.5.1) Startup readiness check (CUDA, models, Ollama, VRAM, proxy, index).
+- **`scripts/modelfile.qwen3-nothink`** — v0.5.1: hardened with num_ctx=8192, num_predict=400, temperature=0.35, stop sequences.
+- **`scripts/ollama_env.sh`** — (new in v0.5.1) Ollama Flash Attention + KV cache config.
 
 ### Previous changes (already in v0.4.0)
 
@@ -152,32 +169,79 @@ ENABLE_CITATION_VERIFY=false # bigram overlap guardrail
 ENABLE_LLM_FALLBACK=true     # DeepSeek fallback if Ollama fails
 ENABLE_TWO_STAGE_GENERATION=false  # DEPRECATED — merged into system prompt
 
+# Prompt budget (v0.5.1 — token-aware context trimming)
+PROMPT_TOKEN_BUDGET=4096     # total prompt token budget
+MAX_CHUNK_TOKENS=320         # per-chunk token cap (head+tail preserved)
+MAX_CHUNKS_IN_PROMPT=6       # max chunks fed to LLM (was 12)
+
+# LLM timeout & circuit breaker (v0.5.1)
+LLM_REQUEST_TIMEOUT=20       # HTTP timeout for LLM requests (was 120)
+LLM_TTFT_TIMEOUT_SECONDS=5   # stream first-token timeout
+
+# GPU memory (v0.5.1)
+EMPTY_CACHE_EVERY_N_REQUESTS=20  # periodic torch.cuda.empty_cache
+EMPTY_CACHE_FREE_VRAM_MB=1500    # force cleanup when free VRAM < 1.5GB
+RERANKER_DEVICE=auto             # auto | cuda | cpu (CPU mode saves ~1GB VRAM)
+
 # Embedding
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ```
 
 ## Deployment notes
 
-**Startup checklist** (critical — skip this and the server WILL fail):
+**Startup** — one command:
 
 ```bash
-# 1. Clear stale proxy vars (Windows proxy leaks into WSL)
-unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
-
-# 2. Offline mode prevents HuggingFace HEAD checks that hang on dead proxy
-export HF_HUB_OFFLINE=1
-
-# 3. Start server
-source .venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+./scripts/start_server.sh           # production
+./scripts/start_server.sh --reload  # dev mode
 ```
 
-**GPU memory**: 16GB is the minimum for Qwen3-8B + BGE-M3 + BGE-Reranker simultaneously. After ~50 requests, PyTorch CUDA cache fragments can push usage to 15.9GB, degrading Ollama generation from 2s to 50s+. Restart server if latency spikes.
+The script auto-clears proxy vars, sets `HF_HUB_OFFLINE=1`, `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, activates venv, and runs preflight checks before starting uvicorn.
 
-**Latency profile** (post-fix, 2-stage gen disabled):
+**Preflight diagnostics** (run without starting server):
+
+```bash
+python scripts/preflight_check.py
+```
+
+Checks: CUDA, model weights, Ollama, VRAM, proxy vars, index files.
+
+**Ollama server environment** (must be set where `ollama serve` runs):
+
+```bash
+# Source scripts/ollama_env.sh before starting ollama serve, or set manually:
+export OLLAMA_FLASH_ATTENTION=1     # enable Flash Attention (Ada arch, CC 8.9)
+export OLLAMA_KV_CACHE_TYPE=q8_0    # 8-bit KV cache (~50% VRAM savings)
+export OLLAMA_KEEP_ALIVE=24h        # keep model loaded, avoid cold starts
+```
+
+Ollama version: **0.24.0** (stable; 0.12.0 had known long-context regression).
+
+**Rebuild model** after Modelfile changes:
+
+```bash
+ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink
+ollama show qwen3:8b-nothink --parameters  # verify num_ctx=8192, num_predict=400
+```
+
+**GPU memory**: 16GB is the minimum for Qwen3-8B + BGE-M3 + BGE-Reranker simultaneously. v0.5.1 mitigations:
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` reduces fragmentation
+- Periodic `torch.cuda.empty_cache()` every 20 requests (or when free < 1.5 GB)
+- `RERANKER_DEVICE=cpu` frees ~1 GB VRAM if needed (reranker latency 200-500ms on CPU)
+- Ollama `OLLAMA_KV_CACHE_TYPE=q8_0` saves ~0.5-1 GB
+
+**Latency profile** (v0.5.1, with Modelfile and token budget):
 - Normal questions (80%): 2-3s
-- Long-context questions: 10-25s
-- Pathological (very long chunks): 60-150s — root cause is Ollama generating excessive output despite 250-char limit in system prompt
+- Long-context questions: 5-15s
+- High-risk questions: ≤ 15s (template-based, not LLM-generated appendices)
+- P99: ≤ 20s (down from 60-150s, thanks to num_predict=400 + stop sequences + token budget + 20s hard timeout → DeepSeek fallback)
+
+**API endpoints** (new in v0.5.1):
+- `GET /health` — basic health check
+- `GET /admin/health_deep` — full runtime snapshot: Ollama, GPU, models, index, cache
+- `POST /ask` — non-streaming Q&A
+- `POST /ask/stream` — SSE streaming Q&A
+- `POST /feedback` — user feedback logging
 
 **Thread safety**: GPU models (BGE-M3, BGE-Reranker) are NOT thread-safe. Calls to `.encode()` and `.predict()` are serialized via per-model locks. The LLM HTTP call to Ollama is outside the lock and can run concurrently.
 

@@ -7,6 +7,7 @@ without rewriting the whole flow.
 """
 
 import time
+import threading
 from typing import Any
 
 from app.config import Settings
@@ -50,6 +51,8 @@ class RAGPipeline:
         self._classifier = classifier or RiskClassifier()
         self._templates = templates or ResponseTemplates()
         self._settings = settings or Settings()
+        self._request_count = 0
+        self._counter_lock = threading.Lock()
 
     # ── Main entry point ────────────────────────────────────────
 
@@ -57,6 +60,7 @@ class RAGPipeline:
         """Run the full pipeline and return the ``/ask`` response dict."""
         t_start = time.time()
         self._llm_used: str | None = None
+        timing: dict[str, float] = {}
 
         # 1. Validate input
         if not question or not question.strip():
@@ -68,45 +72,62 @@ class RAGPipeline:
             return meta
 
         # 2. Classify risk
+        t0 = time.time()
         classification = self._classify(question)
+        timing["classify_ms"] = round((time.time() - t0) * 1000)
 
         # 2.5 Rewrite query (optional — normalise colloquial → formal)
         search_query = question
+        t0 = time.time()
         if self._query_rewriter and self._settings.enable_query_rewrite:
             search_query = self._rewrite_query(question)
+        timing["rewrite_ms"] = round((time.time() - t0) * 1000)
 
         # 3. Retrieve (larger candidate pool if reranker enabled)
+        t0 = time.time()
         try:
             if self._reranker and self._settings.enable_rerank:
                 chunks = self._retrieve(search_query, top_k=self._settings.rerank_candidate_k)
             else:
                 chunks = self._retrieve(search_query)
         except Exception:
-            return self._fallback_response(question, classification, t_start, retrieval_count=0)
+            return self._fallback_response(question, classification, t_start, retrieval_count=0, timing=timing)
 
         retrieval_count = len(chunks)
+        timing["retrieve_ms"] = round((time.time() - t0) * 1000)
 
         # 3.5 Rerank (two-stage: coarse retrieval → fine cross-encoder)
-        if self._reranker and self._settings.enable_rerank:
+        t0 = time.time()
+        if self._reranker and self._settings.enable_rerank and chunks:
             chunks = self._rerank(search_query, chunks)
+        timing["rerank_ms"] = round((time.time() - t0) * 1000)
 
         # 4. Filter by reliability
         reliable = self._filter_chunks(chunks, classification.level)
 
         # 5. No evidence → refusal
         if not reliable:
-            return self._no_evidence_response(question, classification, t_start, retrieval_count)
+            result = self._no_evidence_response(question, classification, t_start, retrieval_count)
+            result["debug"]["timing"] = timing
+            return result
 
         # 6. Build prompt & call LLM — dedup by source, cap total
+        t0 = time.time()
         top_chunks = self._dedup_chunks(reliable)
+        messages, prompt_tokens, prompt_chunks = self._build_prompt(
+            question, top_chunks, classification.level, classification.is_process
+        )
+        timing["build_prompt_ms"] = round((time.time() - t0) * 1000)
+
+        t0 = time.time()
         try:
             if self._settings.enable_two_stage_generation:
                 answer_text = self._generate_two_stage(question, top_chunks)
             else:
-                messages = self._build_prompt(question, top_chunks, classification.level, classification.is_process)
                 answer_text = self._generate(messages)
         except LLMError:
-            return self._fallback_response(question, classification, t_start, retrieval_count)
+            return self._fallback_response(question, classification, t_start, retrieval_count, timing=timing)
+        timing["generate_ms"] = round((time.time() - t0) * 1000)
 
         # 7. Verify citations (optional guardrail)
         citation_warnings: list[str] = []
@@ -114,10 +135,18 @@ class RAGPipeline:
             citation_warnings = self._verify_citations(answer_text, top_chunks)
 
         # 8. Format final response
-        return self._format_response(
+        t0 = time.time()
+        result = self._format_response(
             question, answer_text, classification, top_chunks,
             t_start, retrieval_count, citation_warnings,
+            timing=timing, prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
         )
+        timing["format_ms"] = round((time.time() - t0) * 1000)
+
+        # 9. Periodic GPU cache cleanup
+        self._maybe_free_gpu_cache()
+
+        return result
 
     # ── Step methods (override in subclasses) ───────────────────
 
@@ -169,7 +198,12 @@ class RAGPipeline:
             "risk_level": "low",
             "need_human_confirm": False,
             "sources": [],
-            "debug": {"retrieval_count": 0, "latency": 0, "audit_warnings": [], "citation_warnings": [], "llm_used": None, "cached": False},
+            "debug": {
+                "retrieval_count": 0, "latency": 0,
+                "audit_warnings": [], "citation_warnings": [],
+                "llm_used": None, "cached": False,
+                "timing": {},
+            },
         }
 
     def _classify(self, question: str) -> ClassificationResult:
@@ -221,32 +255,61 @@ class RAGPipeline:
     def _build_prompt(
         self, question: str, chunks: list[dict], level: RiskLevel,
         is_process: bool = False,
-    ) -> list[dict[str, str]]:
-        context = self._build_context(chunks)
+    ) -> tuple[list[dict[str, str]], int, int]:
+        """Build the LLM prompt, applying token budget to trim chunks.
+
+        Returns (messages, estimated_prompt_tokens, chunk_count_used).
+        """
+        budget = self._settings.prompt_token_budget
+        max_chunk_tok = self._settings.max_chunk_tokens
+        max_chunks = self._settings.max_chunks_in_prompt
+
+        # System prompt token estimate (Chinese chars ≈ tokens)
+        system_tokens = len(self._settings.system_prompt)
+        question_tokens = len(question) + 50  # 50 for framing text
+        overhead = system_tokens + question_tokens + 200  # 200 for formatting/metadata
+        remaining = budget - overhead
+
+        # Trim chunks to fit budget (each already in reranker order)
+        context_parts = []
+        used = 0
+        for c in chunks[:max_chunks]:
+            content = self._trim_chunk(c["content"], max_chunk_tok)
+            section = c.get("article", c.get("section", "无"))
+            part = f"[来源: {c['title']} | 条款: {section}]\n{content}"
+            part_tokens = len(part)
+            if remaining - part_tokens < 0 and context_parts:
+                break  # don't exceed budget
+            context_parts.append(part)
+            remaining -= min(part_tokens, remaining)
+            used += 1
+            if remaining <= 0:
+                break
+
+        context = "\n\n---\n\n".join(context_parts) if context_parts else "（无参考资料）"
+
+        # System prompt with conditional short patches
+        system = self._settings.system_prompt
+        if level == RiskLevel.HIGH:
+            system += "\n\n本题为高风险，只给一般规定与办事入口，不给个人结论。"
+
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": self._settings.system_prompt},
+            {"role": "system", "content": system},
             {"role": "user", "content": f"【参考资料片段】\n\n{context}\n\n【用户问题】\n{question}"},
         ]
         if is_process:
             messages.append(
                 {
                     "role": "user",
-                    "content": "（这是一个流程类问题。请分步骤列出操作流程，每步注明所需材料和办理入口。）",
+                    "content": "（流程类问题。请分步骤列出操作流程，每步注明所需材料和办理入口。）",
                 }
             )
-        if level == RiskLevel.HIGH:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "（注意：这是一个高风险问题。请只描述校规中已有的客观规定，"
-                        "不要对用户个人情况做任何判断或结论。）"
-                    ),
-                }
-            )
-        return messages
+
+        prompt_tokens = sum(len(m.get("content", "")) for m in messages)
+        return messages, prompt_tokens, used
 
     def _build_context(self, chunks: list[dict]) -> str:
+        """Build a concatenated context string (used by two-stage generation)."""
         if not chunks:
             return "（无参考资料）"
         parts = []
@@ -254,6 +317,29 @@ class RAGPipeline:
             section = c.get("article", c.get("section", "无"))
             parts.append(f"[来源: {c['title']} | 条款: {section}]\n{c['content']}")
         return "\n\n---\n\n".join(parts)
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Estimate token count for Chinese text. ~1 token per char for CJK."""
+        # Simple heuristic: count CJK chars as 1 token each, rest as length.
+        cjk = sum(1 for ch in text if '一' <= ch <= '鿿' or '㐀' <= ch <= '䶿')
+        non_cjk = len(text) - cjk
+        return cjk + max(1, non_cjk // 3)  # ~3 chars/token for non-CJK text
+
+    @staticmethod
+    def _trim_chunk(content: str, max_tokens: int) -> str:
+        """Trim a chunk to *max_tokens* preserving head and tail.
+
+        Long chunks keep the first 60% and last 40% with an ellipsis marker
+        in between — tail sections often carry effective dates and exceptions.
+        """
+        if len(content) <= max_tokens:
+            return content
+        head_size = int(max_tokens * 0.6)
+        tail_size = max_tokens - head_size - 8  # 8 for ellipsis
+        if tail_size < 20:
+            return content[:max_tokens] + "…"
+        return content[:head_size] + "\n……(原文略)……\n" + content[-tail_size:]
 
     def _generate(self, messages: list[dict]) -> str:
         """Call primary LLM; fall back to secondary on failure."""
@@ -280,6 +366,26 @@ class RAGPipeline:
                 yield from self._fallback_llm.chat_stream(messages, temperature=0.35)
             else:
                 raise
+
+    # ── GPU memory management ────────────────────────────────────
+
+    def _maybe_free_gpu_cache(self):
+        """Periodically release fragmented CUDA cache to prevent degradation."""
+        with self._counter_lock:
+            self._request_count += 1
+            n = self._request_count
+
+        interval = self._settings.empty_cache_every_n_requests
+        if interval > 0 and n % interval == 0:
+            try:
+                import torch
+                free_mb = torch.cuda.mem_get_info()[0] / (1024 * 1024)
+                threshold_mb = self._settings.empty_cache_free_vram_mb
+                if free_mb < threshold_mb:
+                    print(f"[GPU] 空闲显存 {free_mb:.0f}MB < {threshold_mb}MB，释放缓存")
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
 
     # ── Two-stage generation ────────────────────────────────────
 
@@ -339,13 +445,18 @@ class RAGPipeline:
         t_start: float,
         retrieval_count: int,
         citation_warnings: list[str] | None = None,
+        timing: dict[str, float] | None = None,
+        prompt_tokens: int = 0,
+        prompt_chunks: int = 0,
     ) -> dict[str, Any]:
         # Length cap
         limit = self._settings.max_answer_length
+        truncated = False
         if len(answer_text) > limit:
             answer_text = answer_text[:limit] + "..."
+            truncated = True
 
-        # High-risk notice (with department contacts from source metadata)
+        # High-risk notice — template-driven, appended post-generation
         if classification.level == RiskLevel.HIGH:
             depts = [c.get("department", "") for c in chunks if c.get("department")]
             answer_text += "\n\n" + self._templates.high_risk_notice(question, depts)
@@ -358,6 +469,18 @@ class RAGPipeline:
         audit = self._audit_sources(chunks[:5])
         latency = round(time.time() - t_start, 2)
 
+        debug: dict[str, Any] = {
+            "retrieval_count": retrieval_count,
+            "latency": latency,
+            "audit_warnings": audit,
+            "citation_warnings": citation_warnings or [],
+            "llm_used": getattr(self, "_llm_used", None),
+            "timing": timing or {},
+            "prompt_tokens": prompt_tokens,
+            "prompt_chunks": prompt_chunks,
+            "truncated": truncated,
+        }
+
         return {
             "question": question,
             "answer": answer_text,
@@ -366,13 +489,7 @@ class RAGPipeline:
                 question, classification.level
             ),
             "sources": sources,
-            "debug": {
-                "retrieval_count": retrieval_count,
-                "latency": latency,
-                "audit_warnings": audit,
-                "citation_warnings": citation_warnings or [],
-                "llm_used": getattr(self, "_llm_used", None),
-            },
+            "debug": debug,
         }
 
     # ── Helpers ─────────────────────────────────────────────────
@@ -474,7 +591,11 @@ class RAGPipeline:
             "risk_level": "low",
             "need_human_confirm": False,
             "sources": [],
-            "debug": {"retrieval_count": 0, "latency": 0, "citation_warnings": []},
+            "debug": {
+                "retrieval_count": 0, "latency": 0,
+                "citation_warnings": [],
+                "timing": {},
+            },
         }
 
     def _no_evidence_response(
@@ -498,6 +619,7 @@ class RAGPipeline:
             "latency": latency,
             "audit_warnings": [],
             "citation_warnings": [],
+            "timing": {},
         }
         return result
 
@@ -507,6 +629,7 @@ class RAGPipeline:
         classification: ClassificationResult,
         t_start: float,
         retrieval_count: int,
+        timing: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         latency = round(time.time() - t_start, 2)
         return {
@@ -520,6 +643,7 @@ class RAGPipeline:
                 "latency": latency,
                 "audit_warnings": [],
                 "citation_warnings": [],
+                "timing": timing or {},
             },
         }
 

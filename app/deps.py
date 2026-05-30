@@ -101,7 +101,7 @@ def create_reranker(settings: Settings | None = None):
     if not s.enable_rerank:
         return None
     from app.reranker import CrossEncoderReranker
-    return CrossEncoderReranker(model_name=s.reranker_model)
+    return CrossEncoderReranker(model_name=s.reranker_model, device=s.reranker_device)
 
 
 def create_query_rewriter(settings: Settings | None = None, llm=None):

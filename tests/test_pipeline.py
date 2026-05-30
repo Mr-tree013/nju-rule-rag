@@ -204,14 +204,14 @@ class TestRAGPipelineSteps:
 
     def test_build_prompt_includes_high_risk_reminder(self, pipeline):
         chunks = [{"title": "T", "content": "C", "section": "S"}]
-        msgs = pipeline._build_prompt("作弊怎么办", chunks, RiskLevel.HIGH)
-        # Should have system + user + high-risk reminder
-        assert len(msgs) == 3
-        assert "高风险" in msgs[-1]["content"]
+        msgs, tokens, used = pipeline._build_prompt("作弊怎么办", chunks, RiskLevel.HIGH)
+        # High-risk: system (with patch) + user; no third message (patch is in system)
+        assert len(msgs) == 2
+        assert "高风险" in msgs[0]["content"]
 
     def test_build_prompt_medium_has_no_extra_message(self, pipeline):
         chunks = [{"title": "T", "content": "C", "section": "S"}]
-        msgs = pipeline._build_prompt("缓考怎么申请", chunks, RiskLevel.MEDIUM)
+        msgs, tokens, used = pipeline._build_prompt("缓考怎么申请", chunks, RiskLevel.MEDIUM)
         assert len(msgs) == 2  # system + user only
 
     def test_extract_sources(self, pipeline):
@@ -285,16 +285,16 @@ class TestStage5Features:
 
     def test_build_prompt_process_question(self, pipeline):
         chunks = [{"title": "T", "content": "缓考流程说明", "section": "S"}]
-        msgs = pipeline._build_prompt("缓考怎么申请", chunks, RiskLevel.MEDIUM, is_process=True)
+        msgs, tokens, used = pipeline._build_prompt("缓考怎么申请", chunks, RiskLevel.MEDIUM, is_process=True)
         # Should have system + user + process hint
         assert len(msgs) == 3
         assert "流程" in msgs[-1]["content"]
 
     def test_build_prompt_high_risk_and_process(self, pipeline):
         chunks = [{"title": "T", "content": "退学流程", "section": "S"}]
-        msgs = pipeline._build_prompt("退学流程是什么", chunks, RiskLevel.HIGH, is_process=True)
-        # Should have system + user + process + high-risk
-        assert len(msgs) == 4
+        msgs, tokens, used = pipeline._build_prompt("退学流程是什么", chunks, RiskLevel.HIGH, is_process=True)
+        # High-risk patch is in system message; process hint is separate
+        assert len(msgs) == 3  # system(+patch) + user + process hint
 
     def test_high_risk_notice_with_departments(self):
         from app.policy import ResponseTemplates

@@ -51,38 +51,6 @@ class AskRequest(BaseModel):
     question: str
 
 
-@app.get("/health")
-def health():
-    """Health check.  Returns basic status; retriever stats only if cached."""
-    s = create_settings()
-    warnings = s.validate()
-
-    resp: dict = {
-        "status": "ok",
-        "version": "0.2.0",
-        "chunks_file": s.chunks_file,
-        "vector_enabled": s.enable_vector,
-    }
-
-    # Only include retriever status if the singleton is already loaded.
-    try:
-        from app.pipeline import _pipeline
-        if _pipeline is not None:
-            status = _pipeline._retriever.status()
-            resp["retriever"] = {
-                "bm25_loaded": status.get("bm25_loaded", False),
-                "bm25_chunks": status.get("bm25_chunks", 0),
-                "vector_loaded": status.get("vector_loaded", False),
-            }
-    except Exception:
-        pass
-
-    if warnings:
-        resp["config_warnings"] = warnings
-
-    return resp
-
-
 @app.post("/ask")
 def ask(req: AskRequest):
     if not req.question or not req.question.strip():
@@ -171,7 +139,7 @@ async def ask_stream(req: AskRequest):
         return JSONResponse(content=result)
 
     # 6. Build prompt
-    messages = pipeline._build_prompt(req.question, top_chunks, classification.level, classification.is_process)
+    messages, prompt_tokens, prompt_chunks = pipeline._build_prompt(req.question, top_chunks, classification.level, classification.is_process)
 
     async def generate():
         try:
@@ -185,6 +153,7 @@ async def ask_stream(req: AskRequest):
             result = pipeline._format_response(
                 req.question, full_answer, classification, top_chunks,
                 t_start, retrieval_count,
+                prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
             )
             yield f"data: {json.dumps({'done': True, 'result': result})}\n\n"
         except Exception as exc:
@@ -224,6 +193,43 @@ def feedback(req: FeedbackRequest):
 @app.get("/cache/stats")
 def cache_stats():
     return qa_cache.stats()
+
+
+@app.get("/health")
+def health_basic():
+    """Basic health check — fast, lightweight."""
+    s = create_settings()
+    warnings = s.validate()
+    resp: dict = {
+        "status": "ok",
+        "version": "0.5.1",
+        "chunks_file": s.chunks_file,
+        "vector_enabled": s.enable_vector,
+    }
+    try:
+        from app.pipeline import _pipeline
+        if _pipeline is not None:
+            status = _pipeline._retriever.status()
+            resp["retriever"] = {
+                "bm25_loaded": status.get("bm25_loaded", False),
+                "bm25_chunks": status.get("bm25_chunks", 0),
+                "vector_loaded": status.get("vector_loaded", False),
+            }
+    except Exception:
+        pass
+    if warnings:
+        resp["config_warnings"] = warnings
+    return resp
+
+
+@app.get("/admin/health_deep")
+def health_deep():
+    """Deep health check — full runtime snapshot including GPU and Ollama."""
+    from app.health import get_deep_health
+    from app.config import create_settings
+    s = create_settings()
+    from app.cache import qa_cache
+    return get_deep_health(s.project_root, cache_stats_fn=qa_cache.stats)
 
 
 # ── QQ Bot webhook (OneBot v11 HTTP 回调) ────────────────────────────

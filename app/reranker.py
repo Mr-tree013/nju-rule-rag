@@ -27,8 +27,9 @@ class CrossEncoderReranker:
     but too slow to run over the full corpus.
     """
 
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
+    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3", device: str = "auto"):
         self._model_name = model_name
+        self._device = device
         self._model = None
         self._load_lock = threading.Lock()
         self._gpu_lock = threading.Lock()
@@ -48,8 +49,18 @@ class CrossEncoderReranker:
             if self._model is not None:
                 return
             from sentence_transformers import CrossEncoder
-            print(f"[Reranker] Loading {self._model_name} ...")
-            self._model = CrossEncoder(self._model_name)
+            import torch
+
+            device = self._device
+            if device == "auto":
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+
+            print(f"[Reranker] Loading {self._model_name} on {device} ...")
+            self._model = CrossEncoder(
+                self._model_name, device=device,
+            )
+            if device == "cpu":
+                self._gpu_lock = threading.Lock()  # no-op lock for CPU
 
     def rerank(self, question: str, chunks: list[dict], top_k: int = 12) -> list[dict]:
         if not chunks:
