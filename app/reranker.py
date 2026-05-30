@@ -5,6 +5,7 @@ A reranker re-scores a larger candidate set with a more expensive but more
 accurate model, then returns a smaller set of top-ranked chunks for the LLM.
 """
 
+import math
 import threading
 from typing import Protocol, runtime_checkable
 
@@ -69,9 +70,12 @@ class CrossEncoderReranker:
         self._load()
         pairs = [(question, c["content"]) for c in chunks]
         with self._gpu_lock:
-            scores = self._model.predict(pairs, show_progress_bar=False)
-        for c, s in zip(chunks, scores):
-            c["rerank_score"] = float(s)
-            c["score"] = float(s)  # downstream filter expects "score"
+            logits = self._model.predict(pairs, show_progress_bar=False)
+        for c, logit in zip(chunks, logits):
+            c["rerank_score"] = float(logit)
+            # Fuse original hybrid score with sigmoid(logit) to keep both signals
+            sigmoid_score = 1.0 / (1.0 + math.exp(-float(logit)))
+            original = c.get("score", 0.0)
+            c["score"] = 0.4 * original + 0.6 * sigmoid_score
         chunks.sort(key=lambda c: c["score"], reverse=True)
         return chunks[:top_k]
