@@ -1,6 +1,6 @@
 {
-  "built_at": "2026-05-30 21:15:03",
-  "total_chunks": 3976,
+  "built_at": "2026-05-30 22:32:06",
+  "total_chunks": 3977,
   "avg_chars": 192,
   "avg_cn_chars": 150,
   "min_cn_chars": 30,
@@ -37,6 +37,7 @@
     "nju-guide-023": 2,
     "nju-guide-022": 3,
     "nju-guide-008": 2,
+    "nju-guide-040": 1,
     "nju-guide-007": 1,
     "nju-guide-012": 1,
     "nju-guide-034": 1,
@@ -125,11 +126,11 @@
   },
   "per_priority": {
     "3": 52,
-    "2": 220,
+    "2": 221,
     "1": 1049,
     "4": 928,
     "5": 1727
   },
-  "sources_matched": 115,
+  "sources_matched": 116,
   "sources_unmatched": []
 }
