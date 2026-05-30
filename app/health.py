@@ -37,7 +37,59 @@ def get_deep_health(project_root: Path, cache_stats_fn=None) -> dict[str, Any]:
     else:
         health["cache"] = {"hits": 0, "misses": 0, "size": 0}
 
+    # ── Stale sources (F.6) ──────────────────────────────────────
+    health["stale_sources"] = _check_stale_sources(project_root)
+
     return health
+
+
+def _check_stale_sources(project_root: Path) -> list[dict[str, Any]]:
+    """Detect sources that haven't been crawled recently (F.6)."""
+    import csv
+    from datetime import datetime, timedelta
+
+    sources_csv = project_root / "data" / "sources.csv"
+    if not sources_csv.exists():
+        return []
+
+    stale = []
+    now = datetime.now()
+    try:
+        with open(sources_csv, encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                last_crawled = row.get("last_crawled_at", "").strip()
+                stale_days_str = row.get("stale_after_days", "365").strip()
+                if not last_crawled:
+                    stale.append({
+                        "source_id": row.get("source_id", "?"),
+                        "title": row.get("title", "")[:60],
+                        "last_crawled_at": "",
+                        "stale_after_days": int(stale_days_str) if stale_days_str.isdigit() else 365,
+                        "days_since": None,
+                        "reason": "never crawled",
+                    })
+                    continue
+                try:
+                    crawled_date = datetime.strptime(last_crawled[:10], "%Y-%m-%d")
+                    stale_days = int(stale_days_str) if stale_days_str.isdigit() else 365
+                    days_since = (now - crawled_date).days
+                    if days_since > stale_days:
+                        stale.append({
+                            "source_id": row.get("source_id", "?"),
+                            "title": row.get("title", "")[:60],
+                            "last_crawled_at": last_crawled,
+                            "stale_after_days": stale_days,
+                            "days_since": days_since,
+                            "reason": f"过期 {days_since - stale_days} 天",
+                        })
+                except ValueError:
+                    pass
+    except Exception:
+        return [{"error": "Failed to parse sources.csv"}]
+
+    # Sort by most overdue
+    stale.sort(key=lambda x: -(x.get("days_since") or 9999))
+    return stale[:20]
 
 
 def _check_ollama() -> dict[str, Any]:

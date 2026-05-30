@@ -247,6 +247,73 @@ def health_deep():
     return get_deep_health(s.project_root, cache_stats_fn=qa_cache.stats)
 
 
+# ── Admin: URL ingestion endpoint (F.4) ──────────────────────────────
+
+
+class IngestRequest(BaseModel):
+    url: str
+    source_id: str = ""
+    title: str = ""
+    department: str = ""
+    scope: str = "本科生"
+    priority: int = 3
+
+
+@app.post("/admin/ingest_url")
+def ingest_url(req: IngestRequest):
+    """Submit a URL for ingestion into the corpus.
+
+    Fetches the page, converts to markdown, saves to data/staging/,
+    and returns a review reference for the CLI tool.
+    """
+    import os
+    from pathlib import Path
+
+    from app.crawl.fetcher import fetch_and_stage
+
+    staging_dir = Path(os.getenv("STAGING_DIR", "data/staging"))
+    result = fetch_and_stage(req.url, staging_dir=staging_dir, source_id=req.source_id or None)
+
+    if result["status"] == "staged":
+        return {
+            "status": "staged",
+            "file": result["file_path"],
+            "content_hash": result["content_hash"],
+            "content_length": result.get("content_length", 0),
+            "message": (
+                f"文档已暂存。运行 python scripts/review_staging.py "
+                f"审核后入库。"
+            ),
+        }
+    else:
+        return {
+            "status": "error",
+            "error": result.get("error", "unknown"),
+            "message": "抓取失败，请检查 URL 是否可访问。",
+        }
+
+
+@app.get("/admin/staging")
+def list_staging():
+    """List all staged documents waiting for review."""
+    from pathlib import Path
+    import os
+
+    staging_dir = Path(os.getenv("STAGING_DIR", "data/staging"))
+    if not staging_dir.exists():
+        return {"staged": []}
+
+    items = []
+    for f in sorted(staging_dir.glob("*.md"), reverse=True):
+        stat = f.stat()
+        items.append({
+            "file": str(f),
+            "size": stat.st_size,
+            "modified": stat.st_mtime,
+        })
+    return {"staged": items[:20], "total": len(items)}
+
+
 # ── QQ Bot webhook (OneBot v11 HTTP 回调) ────────────────────────────
 
 _RE_CQ = re.compile(r"\[CQ:\w+,.*?\]")
