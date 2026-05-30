@@ -159,8 +159,6 @@ def main():
         output_path=str(OUTPUT_DIR),
         save_best_model=True,
         show_progress_bar=True,
-        evaluation_steps=max(steps_per_epoch // 2, 1),
-        evaluator=None,  # We'll eval after training
     )
 
     train_time = time.time() - t0
