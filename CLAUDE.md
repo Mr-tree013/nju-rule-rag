@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.5.1. 105 source documents → 3962 chunks. 118 eval questions. Ollama Modelfile hardened (num_ctx 8192, num_predict 400). Prompt token budget + chunk trimming. GPU memory auto-management. Full-link timing instrumentation. Deep health endpoint. QQ Bot integration.
+**Current status**: v0.5.2. 105 source documents → 3962 chunks. 118 eval questions (100% source coverage, 95.8% keyword hit). Avg latency 2.23s. Reranker score fusion fix applied. Anti-hallucination prompt + lowered temp. Known issue: faithfulness 2.31/5 due to low context precision (0.12).
 
 ## Commands
 
@@ -32,9 +32,10 @@ python scripts/validate_sources.py && python scripts/validate_chunks.py
 
 # ── Evaluation ──
 
-python scripts/eval_rag.py                  # 70-question /ask eval (needs server)
+python scripts/eval_rag.py                  # 118-question /ask eval (needs server)
 PYTHONPATH=. python scripts/eval_retrieval.py          # retrieval metrics (direct)
 PYTHONPATH=. python scripts/eval_retrieval.py --rerank # with reranker
+PYTHONPATH=. python scripts/eval_retrieval.py --rewrite # with query rewrite
 PYTHONPATH=. python scripts/eval_generation.py         # LLM-as-judge scoring
 PYTHONPATH=. python scripts/tune_weights.py           # weight grid search
 PYTHONPATH=. python scripts/check_regression.py       # CI regression gate
@@ -66,6 +67,7 @@ HybridRetriever        BM25(0.25) + BGE-M3 Vector(0.45) + Priority(0.30)
         │
         ▼
 CrossEncoderReranker   BGE-Reranker-v2-m3 (40候选→12精排)
+        │  score融合: 0.4×原始 + 0.6×sigmoid(logit)
         │  (CrossEncoder predict 受 GPU Lock 保护)
         │
         ▼
@@ -76,7 +78,7 @@ _build_prompt          token预算裁剪 (budget=4096, max 6 chunks, 320/chunk)
         │               + 高风险题自动追加短系统补丁
         │
         ▼
-LLM (Qwen3-8B)         temp=0.35, num_ctx=8192, num_predict=400, stop sequences
+LLM (Qwen3-8B)         temp=0.15, num_ctx=8192, num_predict=400, stop sequences
         │  timeout=20s → 超时自动 fallback→DeepSeek
         │  (HTTP I/O — 不加锁，可并发)
         │
@@ -97,11 +99,11 @@ _maybe_free_gpu_cache  N次请求后empty_cache，空闲<1.5GB时强制释放
 ### Key module changes since v0.4.0
 
 - **`app/retriever.py`** — `VectorRetriever` added `threading.RLock` around `embedding_model.encode()` to prevent CUDA deadlock from concurrent GPU access. Exposes `gpu_lock` property for sharing with classifier.
-- **`app/reranker.py`** — `CrossEncoderReranker` added `threading.Lock` around `model.predict()`. `_load()` uses double-checked locking to prevent race on model init. v0.5.1: added `device` parameter for CPU fallback.
+- **`app/reranker.py`** — `CrossEncoderReranker` added `threading.Lock` around `model.predict()`. `_load()` uses double-checked locking to prevent race on model init. v0.5.1: added `device` parameter for CPU fallback. v0.5.2: **score fusion** — cross-encoder logit → sigmoid → `0.4×原始 + 0.6×sigmoid(logit)`, fixing scale mismatch with `min_reliable_score` (logits 0.001-0.18 vs threshold 0.2).
 - **`app/policy.py`** — `TwoLayerRiskClassifier` accepts shared `gpu_lock` parameter; uses it around embedding calls to serialize GPU access with retriever.
 - **`app/deps.py`** — Wires the shared GPU lock from retriever to classifier via `retriever._vector.gpu_lock`. v0.5.1: passes `reranker_device` setting.
-- **`app/config.py`** — System prompt rewritten: persona changed to "南大学长", added 3 few-shot examples, banned bureaucratic language. v0.5.1: added prompt budget, GPU memory, timeout, reranker device settings.
-- **`app/pipeline.py`** — Generation temperature raised 0.2→0.35 for more natural output. `ENABLE_TWO_STAGE_GENERATION` deprecated. v0.5.1: token budget trimming, full-link timing, periodic GPU cache cleanup, high-risk short patch.
+- **`app/config.py`** — System prompt rewritten: persona changed to "南大学长", added 3 few-shot examples, banned bureaucratic language. v0.5.1: added prompt budget, GPU memory, timeout, reranker device settings. v0.5.2: **anti-hallucination rewrite** — rule changed from "必须写出数字" to "绝不编造资料里没有的数字", added bad-example with fabricated details.
+- **`app/pipeline.py`** — Generation temperature: 0.2→0.35→**0.15**. `ENABLE_TWO_STAGE_GENERATION` deprecated. v0.5.1: token budget trimming, full-link timing, periodic GPU cache cleanup, high-risk short patch. v0.5.2: meta-pattern tightened ("怎么用"→"你怎么用" to avoid catching legitimate questions like "大学生医保怎么用").
 - **`app/llm_client.py`** — `chat_stream()` added `try/finally` to close HTTP response. v0.5.1: added stop sequences, stream char limit client-side guard.
 - **`app/health.py`** — (new in v0.5.1) Deep health check aggregating Ollama, GPU, model, index, cache status.
 - **`scripts/start_server.sh`** — (new in v0.5.1) One-click startup with proxy cleanup, GPU env, preflight.
@@ -130,20 +132,39 @@ Total GPU memory: ~8-10 GB (tight on 16GB, see deployment notes). Create the no-
 
 ## Data pipeline
 
-1. `data/sources.csv` — 70 source documents (priority 1-5, department, scope).
-2. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3771 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
+1. `data/sources.csv` — 105 source documents (priority 1-5, department, scope).
+2. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3962 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
 3. `scripts/build_index.py` — BM25 (jieba) + Chroma (BGE-M3, 1024-dim). GPU auto-detection. `batch_size=8` for 16GB VRAM.
 
 To add a document: `.md` → `data/processed/`, add row to `data/sources.csv`, then `build_chunks.py && build_index.py && validate_*`.
 
 ## Eval system
 
-- `data/eval/questions.csv` — 70 questions with `gold_source_ids` column (annotated via `scripts/annotate_gold_sources.py`).
-- `eval_rag.py` — end-to-end `/ask` evaluation (requires server).
+- `data/eval/questions.csv` — 118 questions with `gold_source_ids` column (annotated via `scripts/annotate_gold_sources.py`). `should_refuse=true` for questions that are too personal/subjective to answer.
+- `eval_rag.py` — end-to-end `/ask` evaluation (requires server). Reports latency, source coverage, keyword hit, refusal accuracy.
 - `eval_retrieval.py` — direct retriever evaluation (recall@k, MRR, precision/recall). Supports `--rerank` and `--rewrite` flags.
-- `eval_generation.py` — LLM-as-judge (faithfulness, relevance, refusal correctness, 1-5 scale).
+- `eval_generation.py` — LLM-as-judge (faithfulness, relevance, refusal correctness, 1-5 scale). Uses same Qwen3-8B as judge.
 - `tune_weights.py` — grid search over BM25/Vector/Priority weight space (126 combos).
 - `check_regression.py` — CI gate: compares 7 metrics against `*_baseline.json`, non-zero exit on regression.
+- `data/eval/faithfulness_report.md` — detailed analysis of low-faithfulness answers, 5 hallucination patterns documented.
+
+### Current eval metrics (v0.5.2)
+
+| Metric | Value |
+|--------|-------|
+| End-to-end success | 118/118 (100%) |
+| Has source ratio | 100% |
+| Keyword hit ratio | 95.8% |
+| Should-answer refused | 0 |
+| Should-refuse answered | 0 |
+| Avg latency | 2.23s |
+| recall@5 (no rerank) | 0.831 |
+| recall@5 (rerank) | 0.881 |
+| MRR (rerank) | 0.612 |
+| Context Precision@10 | 0.12 |
+| Faithfulness | 2.31/5 |
+| Relevance | 3.88/5 |
+| Refusal Correctness | 4.48/5 |
 
 ## Key configuration
 
@@ -186,6 +207,19 @@ RERANKER_DEVICE=auto             # auto | cuda | cpu (CPU mode saves ~1GB VRAM)
 # Embedding
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ```
+
+## Known issues (v0.5.2)
+
+**Faithfulness 2.31/5** — LLM hallucinates specific numbers, dates, and procedure details. Root cause is **Context Precision@10 = 0.12**: only ~1 in 8 retrieved chunks is relevant, so the LLM has no reliable anchor and fills gaps from its own knowledge. Three attempted mitigations had minimal effect:
+- System prompt rewrite: "must state numbers" → "never fabricate numbers" — +0.02 F
+- Temperature 0.35→0.15 — +0.00 F
+- Reranker score fusion — fixed retrieval but didn't improve F
+
+The real fix is improving context precision (weight tuning, topic pre-filtering, or reranker fine-tuning). Detailed analysis at `data/eval/faithfulness_report.md`.
+
+**Reranker sigmoid discrimination is weak** — the cross-encoder outputs logits clustered near 0 (sigmoid ~0.5 for all chunks), providing almost no ranking signal. Fine-tuning on NJU-domain relevance pairs would help.
+
+**Context Precision@10 = 0.12** — even with working reranker, the retrieval pipeline is noisy. 20 questions have recall@5 < 0.5. Some topics (社团/考研/体育课项目/校历) have only 1-2 source documents.
 
 ## Deployment notes
 

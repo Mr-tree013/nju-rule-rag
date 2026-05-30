@@ -4,7 +4,7 @@
 
 基于 105 份校规、办事指南和校园生活文档（3962 chunks），支持自然语言提问、来源引用、风险分级与拒答机制。已接入 QQ Bot（NapCat + OneBot v11）。
 
-**当前版本**: v0.5.0 | 122 测试 | 118 道评测题 | 正常延迟 2-3s
+**当前版本**: v0.5.2 | 122 测试 | 118 道评测题 | 正常延迟 2.2s | 来源覆盖率 100%
 
 ---
 
@@ -237,14 +237,19 @@ python scripts/validate_sources.py && python scripts/validate_chunks.py
 
 ## 检索基线
 
-118 题评测（BGE-M3 + Reranker）：
+118 题评测（BGE-M3 + Reranker，v0.5.2）：
 
 | 指标 | 值 |
 |------|-----|
-| recall@5 | 84.3% |
-| recall@10 | 92.9% |
-| MRR | 0.599 |
+| recall@5 (no rerank) | 83.1% |
+| recall@5 (rerank) | 88.1% |
+| recall@10 (rerank) | 91.5% |
+| MRR (rerank) | 0.612 |
+| 端到端成功率 | 100% |
+| 平均延迟 | 2.23s |
 | 单元测试 | 122 个 |
+
+> **已知问题**: 生成忠实度 (Faithfulness) 仅 2.31/5，LLM 倾向编造具体数字和日期。根因是 Context Precision@10=0.12（检索噪声大）。详见 `data/eval/faithfulness_report.md`。
 
 ---
 
