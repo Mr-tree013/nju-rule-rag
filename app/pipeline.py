@@ -142,10 +142,17 @@ class RAGPipeline:
             return self._fallback_response(question, classification, t_start, retrieval_count, timing=timing)
         timing["generate_ms"] = round((time.time() - t0) * 1000)
 
-        # 10. Verify citations (optional guardrail)
+        # 10. Post-hoc entity fact check — downgrade to Tier 2 if fabricated entities found
         citation_warnings: list[str] = []
+        if confidence_tier == "1":
+            answer_text, hedge_warnings = self._fact_check_entities(answer_text, top_chunks)
+            if hedge_warnings:
+                confidence_tier = "2"  # downgrade: fabricated entities detected
+                if self._settings.enable_citation_verify:
+                    citation_warnings.extend(hedge_warnings)
+
         if self._settings.enable_citation_verify:
-            citation_warnings = self._verify_citations(answer_text, top_chunks)
+            citation_warnings.extend(self._verify_citations(answer_text, top_chunks))
 
         # 11. Format final response
         t0 = time.time()
@@ -573,6 +580,70 @@ class RAGPipeline:
         }
 
     # ── Helpers ─────────────────────────────────────────────────
+
+    def _fact_check_entities(
+        self, answer: str, chunks: list[dict]
+    ) -> tuple[str, list[str]]:
+        """Post-process: detect concrete entities in answer and verify against sources.
+
+        Extracts numbers, dates, URLs, and phone numbers from the answer. If an
+        entity doesn't appear verbatim in any source chunk, wraps its sentence
+        with a soft hedge.
+
+        Returns (modified_answer, hedge_warnings).
+        """
+        import re
+
+        if not chunks:
+            return answer, []
+
+        # Build source text corpus
+        source_text = "\n".join(c.get("content", "") for c in chunks)
+
+        # Patterns for fabricatable entities
+        patterns = [
+            (r'\d{3,}\s*元', "金额"),
+            (r'每\s*学分\s*\d+', "学分费用"),
+            (r'\d+\s*元\s*/\s*学分', "学分费用"),
+            (r'https?://[^\s。，）\)]+', "网址"),
+            (r'\d{1,2}\s*月\s*\d{1,2}\s*日', "日期"),
+            (r'\d{1,2}\s*个\s*工作日', "工作日"),
+            (r'\d{3,}-\d{4,}', "电话"),
+            (r'[1-9]\d?\s*周', "周数"),
+            (r'第\s*\d+\s*周', "周数"),
+        ]
+
+        hedge_warnings = []
+        modified = answer
+
+        for pattern, label in patterns:
+            for m in re.finditer(pattern, answer):
+                entity = m.group()
+                # Check if this entity appears verbatim in any source
+                if entity not in source_text:
+                    hedge_warnings.append(f"[{label}] {entity} 未在来源中找到")
+                    # Add inline hedge after the sentence containing this entity
+                    # Find the sentence boundary
+                    start = m.start()
+                    # Look back to find sentence start
+                    sent_start = start
+                    for sep in "。！？\n":
+                        idx = answer.rfind(sep, 0, start)
+                        if idx > sent_start:
+                            sent_start = idx + 1
+                    # Find sentence end
+                    sent_end = len(answer)
+                    for sep in "。！？\n":
+                        idx = answer.find(sep, start)
+                        if idx != -1 and idx < sent_end:
+                            sent_end = idx
+                    sentence = answer[sent_start:sent_end].strip()
+                    if sentence and len(sentence) > 10:
+                        # Wrap with hedge: append soft qualifier to this sentence
+                        hedged = sentence + "（具体数字建议跟教务员确认）"
+                        modified = modified.replace(sentence, hedged, 1)
+
+        return modified, hedge_warnings
 
     def _verify_citations(self, answer: str, chunks: list[dict]) -> list[str]:
         """Lightweight check: do answer claims have source support?
