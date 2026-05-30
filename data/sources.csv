@@ -111,3 +111,5 @@ nju-guide-036,南京大学选课常见问题FAQ,nju-guide-选课常见问题FAQ.
 nju-guide-037,南京大学重修与补考详细说明,nju-guide-重修与补考详细说明.md,,markdown,本科生院,本科生,2,no,semester,E.3 补充：重修补考详细流程，覆盖不能补考的课程类型、重修费用说明,重修;补考,,manual,on_demand,2026-05-30,,365,false,qa
 nju-guide-038,南京大学校园网与信息化服务指南,nju-guide-校园网与信息化服务.md,https://itsc.nju.edu.cn/,markdown,信息化建设管理服务中心,本科生,1,no,semester,E.3 真实来源：itsc.nju.edu.cn 官网数据。含校园网上网认证(PJSD/p.nju.edu.cn)、统一身份认证、VPN、正版软件、校园卡、邮箱,信息化工具;校园生活,https://itsc.nju.edu.cn/,static,monthly,2026-05-30,,180,false,heading
 nju-jw-050,南京大学本科教务办事流程（官方）,nju-jw-教务办事流程官方.md,https://jw.nju.edu.cn/24739/list.htm,markdown,本科生院,本科生,1,no,semester,真实来源：jw.nju.edu.cn 办事流程页面。含缓考/补考/缓修/免修不免考官方流程。,缓考;补考;选课,https://jw.nju.edu.cn/24739/list.htm,static,semester,2026-05-30,,180,false,heading
+nju-jw-051,南京大学本科毕业学分与培养方案,nju-jw-毕业学分与培养方案.md,,markdown,本科生院,本科生,1,no,yearly,真实来源：NJU培养方案数据库（780条方案）。150学分=86%专业标准。通识51-65+专业46-57+多元23-44+论文4-6,选课;学籍异动;成绩/绩点,,manual,yearly,2026-05-30,,365,false,heading
+nju-jw-052,南京大学本科专业准入与转专业政策,nju-jw-专业准入与转专业政策.md,,markdown,本科生院,本科生,1,no,yearly,真实来源：NJU本科生院PDF《专业准入实施方案一览表（2024修订版）》。含各院系GPA门槛、准入课程、考核方式,转专业;学籍异动,,manual,yearly,2026-05-30,,365,false,heading
