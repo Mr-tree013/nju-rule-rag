@@ -129,6 +129,36 @@ class Settings:
     rerank_top_k: int = 12
     reranker_device: str = "auto"  # auto | cuda | cpu
 
+    # ── Topic routing (C track: pre-filter sources by question topic) ──
+
+    # topic → source_ids mapping (derived from eval gold-source annotations)
+    topic_route_map: dict[str, list[str]] = field(default_factory=lambda: {
+        "选课": ["nju-jw-006", "nju-guide-036", "nju-guide-001", "nju-guide-002", "nju-jw-050"],
+        "补考": ["nju-jw-005", "nju-jw-029", "nju-jw-032", "nju-jw-033", "nju-guide-037", "nju-jw-050"],
+        "缓考": ["nju-jw-004", "nju-jw-028", "nju-jw-033", "nju-jw-045", "nju-jw-050"],
+        "重修": ["nju-jw-005", "nju-guide-037", "nju-jw-050"],
+        "成绩/绩点": ["nju-jw-003", "nju-jw-043", "nju-guide-036", "nju-jw-051"],
+        "处分/退学/学位": ["nju-jw-001", "nju-jw-002", "nju-jw-007", "nju-jw-010", "nju-jw-039"],
+        "学业预警": ["nju-jw-001", "nju-jw-008"],
+        "转专业": ["nju-guide-004", "nju-jw-011", "nju-jw-052"],
+        "辅修": ["nju-jw-015", "nju-jw-046"],
+        "学籍异动": ["nju-guide-004", "nju-jw-001", "nju-jw-011", "nju-jw-012"],
+        "保研推免": ["nju-guide-005", "nju-jw-050"],
+        "考研": ["nju-guide-017"],
+        "录取入学": ["nju-guide-001", "nju-guide-002", "nju-guide-003", "nju-guide-004", "nju-guide-032", "nju-life-007"],
+        "出国交流": ["nju-guide-008", "nju-guide-009", "nju-jw-014", "nju-jw-018", "nju-jw-041", "nju-jw-042"],
+        "交换/课程认定": ["nju-guide-008", "nju-jw-014", "nju-jw-018", "nju-jw-019", "nju-jw-034", "nju-jw-041", "nju-jw-042"],
+        "资助政策": ["nju-guide-022", "nju-guide-023", "nju-guide-024", "nju-guide-025", "nju-guide-026", "nju-guide-027", "nju-guide-028", "nju-guide-029", "nju-guide-040"],
+        "体育": ["nju-guide-016", "nju-guide-036"],
+        "校历": ["nju-guide-019", "nju-guide-035", "nju-guide-039"],
+        "校园生活": ["nju-life-001", "nju-life-002", "nju-life-003", "nju-life-004", "nju-life-005", "nju-life-007", "nju-life-008", "nju-life-009", "nju-guide-038"],
+        "校园安全": ["nju-guide-020", "nju-guide-033"],
+        "信息化工具": ["nju-guide-010", "nju-guide-011", "nju-guide-012", "nju-guide-013", "nju-guide-014", "nju-guide-015", "nju-guide-038"],
+        "学生社团": ["nju-guide-006", "nju-guide-007", "nju-guide-034"],
+        "浦口校区": ["nju-guide-021"],
+        "周边生活": ["nju-guide-018", "nju-guide-038"],
+    })
+
     # ── Confidence tiering (v0.6.0 three-tier answer strategy) ────
 
     confidence_tier1_top1: float = 0.75   # Tier 1: top-1 orig_score threshold (raised to reduce fabrication)

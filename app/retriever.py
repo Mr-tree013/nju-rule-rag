@@ -392,7 +392,8 @@ class HybridRetriever:
 
     # ── Search ───────────────────────────────────────────────────
 
-    def search(self, question: str, top_k: int | None = None) -> list[dict]:
+    def search(self, question: str, top_k: int | None = None,
+               source_filter: set[str] | None = None) -> list[dict]:
         k = top_k if top_k is not None else self._top_k
         if not question or not question.strip():
             return []
@@ -440,6 +441,10 @@ class HybridRetriever:
 
         scored: list[tuple[str, float, dict]] = []
         for cid, data in merged.items():
+            # Topic routing: skip chunks from excluded sources
+            src_id = data["chunk"].get("source_id", "")
+            if source_filter is not None and src_id not in source_filter:
+                continue
             priority_bonus = (6 - data["priority"]) / 5.0
             final = (
                 data["bm25_score"] * w.bm25
@@ -447,7 +452,6 @@ class HybridRetriever:
                 + priority_bonus * w.priority
             )
             # Apply per-source score boost/penalty
-            src_id = data["chunk"].get("source_id", "")
             boost = self._resolve_boost(src_id)
             if boost != 1.0:
                 final *= boost

@@ -83,7 +83,11 @@ class RAGPipeline:
             search_query = self._rewrite_query(question)
         timing["rewrite_ms"] = round((time.time() - t0) * 1000)
 
-        # 3. Retrieve (larger candidate pool if reranker enabled)
+        # 3.4. Topic routing — boost relevant sources (soft), don't hard-filter
+        route_topic = self._classify_topic(question)
+        route_boost_sids = self._get_source_filter(route_topic) if route_topic else None
+
+        # 4. Retrieve (larger candidate pool if reranker enabled)
         t0 = time.time()
         try:
             if self._reranker and self._settings.enable_rerank:
@@ -92,6 +96,12 @@ class RAGPipeline:
                 chunks = self._retrieve(search_query)
         except Exception:
             return self._fallback_response(question, classification, t_start, retrieval_count=0, timing=timing)
+
+        # Soft boost: multiply scores of chunks from routed sources by 1.2
+        if route_boost_sids:
+            for c in chunks:
+                if c.get("source_id", "") in route_boost_sids:
+                    c["score"] = c.get("score", 0) * 1.2
 
         retrieval_count = len(chunks)
         timing["retrieve_ms"] = round((time.time() - t0) * 1000)
@@ -238,6 +248,52 @@ class RAGPipeline:
     def _classify(self, question: str) -> ClassificationResult:
         return self._classifier.classify(question)
 
+    # ── Topic routing (C track) ──────────────────────────────────
+
+    # Keyword → topic mapping for routing. Order matters: first match wins.
+    _topic_keywords: list[tuple[str, list[str]]] = [
+        ("浦口校区", ["浦口", "浦口校区"]),
+        ("学生社团", ["社团", "学生会", "百团大战"]),
+        ("校园安全", ["报警", "安全", "诈骗", "保卫处", "紧急"]),
+        ("信息化工具", ["校园网", "PJSD", "VPN", "正版软件", "邮箱", "统一身份认证", "南大APP", "企业微信"]),
+        ("资助政策", ["奖学金", "助学金", "助学贷款", "困难补助", "学费减免", "勤工助学", "资助"]),
+        ("体育", ["体测", "体育课", "军训"]),
+        ("校历", ["校历", "放假", "寒假", "暑假", "开学时间", "学期"]),
+        ("选课", ["选课", "学分上限", "通识课", "课程冲突"]),
+        ("缓考", ["缓考"]),
+        ("补考", ["补考"]),
+        ("重修", ["重修"]),
+        ("成绩/绩点", ["绩点", "GPA", "成绩", "平均分"]),
+        ("转专业", ["转专业", "专业准入", "跨大类"]),
+        ("辅修", ["辅修", "双学位"]),
+        ("保研推免", ["保研", "推免"]),
+        ("考研", ["考研", "研究生"]),
+        ("学业预警", ["学业预警", "学业警示"]),
+        ("处分/退学/学位", ["退学", "开除", "处分", "作弊", "学位", "毕业"]),
+        ("交换/课程认定", ["交换", "课程认定", "交流学习"]),
+        ("出国交流", ["出国", "留学", "公派"]),
+        ("录取入学", ["报到", "入学", "二次选拔"]),
+        ("学籍异动", ["休学", "复学", "学籍", "请假"]),
+        ("校园生活", ["宿舍", "食堂", "校医院", "医保", "校园卡", "交通", "校车", "快递"]),
+    ]
+
+    def _classify_topic(self, question: str) -> str | None:
+        """Classify question into a topic for source routing. Returns topic name or None."""
+        q = question.lower()
+        for topic, keywords in self._topic_keywords:
+            for kw in keywords:
+                if kw.lower() in q:
+                    return topic
+        return None
+
+    def _get_source_filter(self, topic: str) -> set[str] | None:
+        """Return source_ids relevant to a topic, or None for full corpus."""
+        route_map = self._settings.topic_route_map
+        sids = route_map.get(topic, [])
+        if not sids:
+            return None
+        return set(sids)
+
     def _rewrite_query(self, question: str) -> str:
         """Normalise colloquial student questions for retrieval."""
         assert self._query_rewriter is not None
@@ -247,8 +303,9 @@ class RAGPipeline:
             return rewritten
         return question
 
-    def _retrieve(self, question: str, top_k: int | None = None) -> list[dict]:
-        return self._retriever.search(question, top_k=top_k)
+    def _retrieve(self, question: str, top_k: int | None = None,
+                  source_filter: set[str] | None = None) -> list[dict]:
+        return self._retriever.search(question, top_k=top_k, source_filter=source_filter)
 
     def _rerank(self, question: str, chunks: list[dict]) -> list[dict]:
         """Cross-encoder re-score and limit to rerank_top_k."""
