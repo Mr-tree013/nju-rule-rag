@@ -152,24 +152,38 @@ class RAGPipeline:
             return self._fallback_response(question, classification, t_start, retrieval_count, timing=timing)
         timing["generate_ms"] = round((time.time() - t0) * 1000)
 
-        # 10. Post-hoc entity fact check — downgrade to Tier 2 if fabricated entities found
+        # 10. NER fact check — verify entities against source chunks (Phase 1.1)
         citation_warnings: list[str] = []
-        if confidence_tier == "1":
-            answer_text, hedge_warnings = self._fact_check_entities(answer_text, top_chunks)
-            if hedge_warnings:
-                confidence_tier = "2"  # downgrade: fabricated entities detected
-                if self._settings.enable_citation_verify:
-                    citation_warnings.extend(hedge_warnings)
+        fact_check_debug: dict = {}
+        if self._settings.enable_fact_check:
+            from app.fact_check import apply_fact_check
+            fc_result = apply_fact_check(answer_text, top_chunks, confidence_tier)
+            answer_text = fc_result["answer"]
+            new_tier = fc_result["tier"]
+            fact_check_debug = fc_result["debug"]
+            if new_tier != confidence_tier:
+                if new_tier == "3":
+                    # Full downgrade to referral — skip further processing
+                    result = self._format_response(
+                        question, answer_text, classification, top_chunks,
+                        t_start, retrieval_count, citation_warnings,
+                        timing=timing, prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
+                        confidence_tier="3",
+                        tier_top1=tier_top1, tier_top3=tier_top3,
+                        fact_check_debug=fact_check_debug,
+                    )
+                    timing["format_ms"] = round((time.time() - t0) * 1000)
+                    self._maybe_free_gpu_cache()
+                    return result
+                confidence_tier = new_tier
+                if fact_check_debug.get("hedged", 0) > 0:
+                    citation_warnings.append(
+                        f"fact_check: {fact_check_debug['hedged']} entities hedged, "
+                        f"{fact_check_debug.get('removed', 0)} removed"
+                    )
 
         if self._settings.enable_citation_verify:
             citation_warnings.extend(self._verify_citations(answer_text, top_chunks))
-
-        # 10.5. Tier 2: strip sentences with no source support (A.3 post-processing)
-        if confidence_tier == "2":
-            stripped, removal_warnings = self._strip_unsupported_sentences(answer_text, top_chunks)
-            if removal_warnings:
-                answer_text = stripped
-                citation_warnings.extend(removal_warnings)
 
         # 11. Format final response
         t0 = time.time()
@@ -599,6 +613,7 @@ class RAGPipeline:
         confidence_tier: str = "1",
         tier_top1: float = 0.0,
         tier_top3: float = 0.0,
+        fact_check_debug: dict | None = None,
     ) -> dict[str, Any]:
         # Length cap
         limit = self._settings.max_answer_length
@@ -633,6 +648,7 @@ class RAGPipeline:
             "confidence_tier": confidence_tier,
             "tier_top1_score": round(tier_top1, 4),
             "tier_top3_avg": round(tier_top3, 4),
+            "fact_check": fact_check_debug or {},
         }
 
         return {

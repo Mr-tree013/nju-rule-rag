@@ -134,6 +134,10 @@ class Settings:
 
     enable_citation_verify: bool = False
 
+    # ── Fact check (Phase 1.1 output-layer verification) ───────────
+
+    enable_fact_check: bool = True
+
     # ── Two-stage generation ───────────────────────────────────────
 
     enable_two_stage_generation: bool = False
@@ -307,6 +311,7 @@ def create_settings() -> Settings:
         enable_vector=os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no"),
         local_embedding_model=os.getenv("LOCAL_EMBEDDING_MODEL", "shibing624/text2vec-base-chinese"),
         enable_citation_verify=os.getenv("ENABLE_CITATION_VERIFY", "false").lower() in ("true", "1", "yes"),
+        enable_fact_check=os.getenv("ENABLE_FACT_CHECK", "true").lower() in ("true", "1", "yes"),
         enable_two_stage_generation=os.getenv("ENABLE_TWO_STAGE_GENERATION", "false").lower() in ("true", "1", "yes"),
         enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", "false").lower() in ("true", "1", "yes"),
         enable_rerank=os.getenv("ENABLE_RERANK", "false").lower() in ("true", "1", "yes"),
