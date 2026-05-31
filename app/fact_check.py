@@ -176,9 +176,8 @@ def apply_fact_check(
     hard_fails = [f for f in failed if _is_zero_tolerance(f["type"])]
     soft_fails = [f for f in failed if not _is_zero_tolerance(f["type"])]
 
-    # Severe: >=3 total failures OR any zero-tolerance → Tier 3
-    if len(failed) >= 3 or len(hard_fails) > 0:
-        # Downgrade to Tier 3: replace answer with short referral
+    # Severe: >=3 total failures OR >=2 zero-tolerance → Tier 3
+    if len(failed) >= 3 or len(hard_fails) >= 2:
         new_tier = "3"
         short_answer = (
             "这个问题我手头的校规资料里没有足够的信息来准确回答，"
@@ -186,31 +185,37 @@ def apply_fact_check(
             "  - 教务处 (025) 8968-1234\n"
             "  - 或通过教务系统 jw.nju.edu.cn 在线咨询"
         )
-        removed_count = len(failed)
-        debug_info = {
-            "extracted_facts": len(facts),
-            "verified": len(facts) - len(failed),
-            "removed": removed_count,
-            "hedged": 0,
-            "hard_failures": len(hard_fails),
-            "soft_failures": len(soft_fails),
-            "unverified": [f"{f['type']}:{f['value']}" for f in failed[:5]],
-            "tier_after_check": "3",
+        return {
+            "answer": short_answer, "tier": "3",
+            "debug": {
+                "extracted_facts": len(facts),
+                "verified": len(facts) - len(failed),
+                "removed": len(failed),
+                "hedged": 0,
+                "hard_failures": len(hard_fails),
+                "soft_failures": len(soft_fails),
+                "unverified": [f"{f['type']}:{f['value']}" for f in failed[:5]],
+                "tier_after_check": "3",
+            },
         }
-        return {"answer": short_answer, "tier": "3", "debug": debug_info}
 
-    # Soft failures only (1-2 items): hedge them
+    # 1 hard_fail + optional soft_fails: hedge everything, keep answer
     modified = answer
-    for f in soft_fails:
-        # Replace the specific value with a hedge
+    hedged_count = 0
+    all_to_hedge = hard_fails + soft_fails  # at most 1 hard + 1-2 soft
+
+    for f in all_to_hedge:
         val = f["value"]
         ftype = f["type"]
         hedge_map = {
+            "amount": f"(具体费用我看到的资料里没写，建议问教务员)",
             "date": f"(具体时间我看到的资料里没写，建议问教务员)",
+            "url": f"(具体网址我看到的资料里没写)",
+            "email": f"(具体联系方式我看到的资料里没写)",
+            "phone": f"(具体电话我看到的资料里没写)",
             "proper_noun": f"(具体的{val}资料里没明说，你确认下)",
         }
         replacement = hedge_map.get(ftype, f"(具体的{val}资料里没写)")
-        # Replace the value in the answer
         modified = modified.replace(val, replacement, 1)
         hedged_count += 1
 
@@ -218,15 +223,16 @@ def apply_fact_check(
     if hedged_count > 0 and current_tier == "1":
         new_tier = "2"
 
-    debug_info = {
-        "extracted_facts": len(facts),
-        "verified": len(facts) - len(failed),
-        "removed": 0,
-        "hedged": hedged_count,
-        "hard_failures": 0,
-        "soft_failures": len(soft_fails),
-        "unverified": [f"{f['type']}:{f['value']}" for f in soft_fails],
-        "tier_after_check": new_tier,
+    return {
+        "answer": modified, "tier": new_tier,
+        "debug": {
+            "extracted_facts": len(facts),
+            "verified": len(facts) - len(failed),
+            "removed": 0,
+            "hedged": hedged_count,
+            "hard_failures": len(hard_fails),
+            "soft_failures": len(soft_fails),
+            "unverified": [f"{f['type']}:{f['value']}" for f in all_to_hedge],
+            "tier_after_check": new_tier,
+        },
     }
-
-    return {"answer": modified, "tier": new_tier, "debug": debug_info}
