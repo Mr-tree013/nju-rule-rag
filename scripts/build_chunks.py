@@ -40,6 +40,16 @@ NOISE_CONTENT = [
 
 # ── helpers ────────────────────────────────────────────────────────
 
+# Matches Q&A patterns: Q：/ A： or #### Q： etc.
+QA_RE = re.compile(
+    r"(?:^|\n)\s*(?:#{1,4}\s*)?(?:Q[：:]|问[：:])",
+    re.MULTILINE,
+)
+
+# Matches table-like structures: pipe tables, key-value lists
+TABLE_ROW_RE = re.compile(r"^\s*\|.+\|", re.MULTILINE)
+
+
 def _count_cn(text: str) -> int:
     return sum(1 for ch in text if "一" <= ch <= "鿿")
 
@@ -203,6 +213,139 @@ def split_handbook(content: str) -> list[tuple[str, str]]:
 
     return all_sections
 
+
+# ── E.4 multi-strategy splitters ────────────────────────────────────
+
+def split_by_qa(content: str) -> list[tuple[str, str]]:
+    """Split FAQ-style content by Q&A pairs.
+
+    Detects patterns: #### Q：... A：... / 问：... 答：...
+    Falls back to heading-based split if no Q&A markers found
+    (many 'qa' documents use headings + bullet format).
+    """
+    # Count Q&A markers to decide strategy
+    q_count = len(re.findall(r"#{1,4}\s*Q[：:]", content))
+    a_count = len(re.findall(r"\n\s*A[：:]", content))
+    qa_count = len(re.findall(r"(?:问|Q)[：:].+?\n.+?(?:答|A)[：:]", content, re.DOTALL))
+
+    # Only use QA split if document actually has Q&A structure
+    if q_count < 2 and qa_count < 2:
+        return split_by_markdown_sections(content)
+
+    # Normalize QA markers
+    text = re.sub(r"#{1,4}\s*Q[：:]", "\n[QA_SPLIT]Q：", content)
+    text = re.sub(r"(?<!\n)(A[：:]|答[：:])", r"\n[QA_SPLIT]\1", text)
+
+    # Split by Q pattern
+    parts = re.split(r"\n\[QA_SPLIT\](?=Q[：:]|A[：:]|答[：:])", text)
+    if len(parts) <= 1:
+        return split_by_markdown_sections(content)
+
+    chunks = []
+    for part in parts:
+        part = part.strip()
+        if is_noise(part):
+            continue
+
+        lines = part.split("\n", 1)
+        first_line = lines[0].strip()
+        heading = re.sub(r"^(?:#{1,4}\s*)?(?:Q|问)[：:]", "", first_line).strip()[:80]
+        body = lines[1].strip() if len(lines) > 1 else part
+        body = re.sub(r"^(?:#{1,4}\s*)?(?:A|答)[：:]", "", body).strip()
+
+        if body and not is_noise(body):
+            label = f"Q: {heading}" if heading else "FAQ"
+            chunks.extend(_split_long(label, body))
+
+    return chunks if chunks else split_by_markdown_sections(content)
+
+
+def split_by_fixed_window(
+    content: str, window_cn: int = 400, overlap_cn: int = 200
+) -> list[tuple[str, str]]:
+    """Split content with fixed-size sliding windows and 50% overlap.
+
+    For documents with no natural structural breaks (e.g., dense prose).
+    Each chunk gets ~window_cn Chinese characters, with overlap_cn overlap
+    between adjacent chunks.
+    """
+    paragraphs = re.split(r"\n\n+", content)
+    chunks = []
+    buf = ""
+    buf_cn = 0
+
+    for para in paragraphs:
+        para = para.strip()
+        if is_noise(para):
+            continue
+        para_cn = _count_cn(para)
+        trial_cn = buf_cn + para_cn
+
+        if trial_cn > window_cn and buf:
+            chunks.append(("正文", buf.strip()))
+            # Keep overlap for context
+            overlap_text = buf[-overlap_cn:] if len(buf) > overlap_cn else buf
+            buf = overlap_text + "\n\n" + para
+            buf_cn = _count_cn(buf)
+        else:
+            buf = buf + ("\n\n" if buf else "") + para
+            buf_cn = trial_cn
+
+    if buf.strip():
+        chunks.append(("正文", buf.strip()))
+
+    return chunks
+
+
+def split_by_table_rows(content: str) -> list[tuple[str, str]]:
+    """Split table-like content: each logical row becomes a chunk.
+
+    Handles:
+      - Markdown pipe tables (| col1 | col2 |)
+      - Key-value lists (key：value or key: value)
+      - Numbered/bulleted list items as individual chunks
+    """
+    # Try pipe table detection first
+    if bool(TABLE_ROW_RE.search(content)):
+        lines = content.split("\n")
+        header = ""
+        rows = []
+        for line in lines:
+            line = line.strip()
+            if not line or not line.startswith("|"):
+                continue
+            if not header:
+                header = line
+                continue
+            # Skip separator lines like |---|---|
+            if re.match(r"^\|[\s\-:|]+\|$", line):
+                continue
+            # Combine header + row
+            chunk_text = f"表格：\n{header}\n{line}"
+            label = f"表格条目"
+            rows.append((label, chunk_text))
+        if rows:
+            return rows
+
+    # Try key-value or list item splitting
+    # Look for repeated patterns like "**key**：value" or "- item"
+    items = re.split(r"\n(?=\*\*|(?:\d+[\.\、])|[一二三四五六七八九十]+[\.\、])", content)
+    if len(items) <= 1:
+        # No clear table structure — fall back to fixed window
+        return split_by_fixed_window(content)
+
+    chunks = []
+    for item in items:
+        item = item.strip()
+        if is_noise(item):
+            continue
+        # First line as heading
+        first_line = item.split("\n")[0][:60]
+        chunks.extend(_split_long(first_line, item))
+    return chunks
+
+
+# ── original splitters ──────────────────────────────────────────────
 
 def _split_long(heading: str, body: str) -> list[tuple[str, str]]:
     """Split *body* by paragraph boundaries if it exceeds MAX_CN."""
@@ -408,7 +551,18 @@ def main():
         content = md_path.read_text(encoding="utf-8")
         content = clean_text(content)
 
-        if is_handbook(content):
+        strategy = source_row.get("chunk_strategy", "").strip()
+        if strategy == "qa":
+            chunk_parts = split_by_qa(content)
+        elif strategy == "table_row":
+            chunk_parts = split_by_table_rows(content)
+        elif strategy == "fixed":
+            chunk_parts = split_by_fixed_window(content)
+        elif strategy == "heading":
+            chunk_parts = split_by_markdown_sections(content)
+        elif strategy == "article":
+            chunk_parts = split_by_article(content) if should_use_article_split(content) else split_by_markdown_sections(content)
+        elif is_handbook(content):
             chunk_parts = split_handbook(content)
         elif should_use_article_split(content):
             chunk_parts = split_by_article(content)
