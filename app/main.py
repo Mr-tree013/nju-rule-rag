@@ -183,19 +183,30 @@ class FeedbackRequest(BaseModel):
     answer: str = ""
     rating: str = ""  # "up" or "down"
     comment: str = ""
+    sources: str = ""  # JSON-serialized source chunks (for training pair construction)
 
 
 @app.post("/feedback")
 def feedback(req: FeedbackRequest):
-    """Log user feedback for eval set improvement."""
+    """Log user feedback for eval set improvement and training data accumulation.
+
+    Each down-vote with sources can be converted to a training pair:
+      query=question, positive=gold_source (from manual label), negative=retrieved
+    """
+    import os
+    today = time.strftime("%Y-%m-%d")
+    log_dir = Path("data/feedback")
+    log_dir.mkdir(parents=True, exist_ok=True)
+
     entry = {
         "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
         "question": req.question,
-        "answer": req.answer[:200],
+        "answer": req.answer[:500],
         "rating": req.rating,
         "comment": req.comment,
+        "sources": req.sources,  # JSON string of retrieved chunks
     }
-    log_path = "data/eval/feedback.jsonl"
+    log_path = log_dir / f"{today}.jsonl"
     try:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
