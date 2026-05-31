@@ -1,224 +1,216 @@
 """
-Review staged documents and accept/reject into corpus (F.3).
+Interactive staging review CLI (F.3).
+
+Scans data/staging/ for new crawled documents, shows a summary,
+and lets the reviewer accept, reject, edit, or skip each one.
 
 Usage:
-    python scripts/review_staging.py          # interactive review
-    python scripts/review_staging.py --list   # list staged documents
-    python scripts/review_staging.py --accept STAGED_FILE  # auto-accept one file
+    python scripts/review_staging.py              # interactive mode
+    python scripts/review_staging.py --list       # list staged files only
+    python scripts/review_staging.py --auto       # auto-accept all
 """
 
 import csv
 import json
-import os
 import shutil
 import sys
-from datetime import datetime
+from datetime import date
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-STAGING_DIR = Path(os.getenv("STAGING_DIR", ROOT / "data" / "staging"))
-PROCESSED_DIR = ROOT / "data" / "processed"
-ARCHIVE_DIR = Path(os.getenv("ARCHIVE_DIR", ROOT / "data" / "archive"))
+STAGING_DIR = ROOT / "data" / "staging"
 SOURCES_CSV = ROOT / "data" / "sources.csv"
-STAGING_DIR.mkdir(parents=True, exist_ok=True)
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+PROCESSED_DIR = ROOT / "data" / "processed"
+ARCHIVE_DIR = ROOT / "data" / "archive"
 
 
-def list_staged():
-    """Return list of (md_file, meta_file) tuples sorted by time."""
-    items = []
-    for f in sorted(STAGING_DIR.glob("*.md"), reverse=True):
-        meta = Path(str(f).replace(".md", ".meta.json"))
-        if not meta.exists():
-            meta = None
-        items.append((f, meta))
-    return items
-
-
-def show_document(md_file: Path, meta_file: Path | None):
-    """Display document for review."""
-    print(f"\n{'='*60}")
-    print(f"File: {md_file.name}")
-    if meta_file and meta_file.exists():
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-        print(f"URL: {meta.get('url', '?')}")
-        print(f"Hash: {meta.get('content_hash', '?')[:16]}...")
-        print(f"Fetched: {meta.get('fetched_at', '?')}")
-    print(f"Size: {md_file.stat().st_size} bytes")
-    print(f"{'='*60}")
-
-    content = md_file.read_text(encoding="utf-8")
-    # Show first 40 lines
-    lines = content.split("\n")
-    for line in lines[:40]:
-        print(line)
-    if len(lines) > 40:
-        print(f"\n... ({len(lines) - 40} more lines)")
-    print(f"{'='*60}")
-
-
-def generate_source_id(md_file: Path, meta_file: Path | None) -> str:
-    """Generate a source_id from the document."""
-    # Try to extract from URL or content
-    if meta_file and meta_file.exists():
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-        url = meta.get("url", "")
-        if "nju.edu.cn" in url:
-            # Extract path-based ID
-            parts = url.replace("https://", "").replace("http://", "").split("/")
-            if len(parts) > 2:
-                return f"nju-web-{parts[1]}-{meta.get('content_hash','')[:6]}"
-    # Fall back to hash-based
-    import hashlib
-    h = hashlib.sha256(str(md_file).encode()).hexdigest()[:8]
-    return f"nju-web-{h}"
-
-
-def register_source(source_id: str, title: str, filename: str, url: str = "",
-                    department: str = "", scope: str = "本科生", priority: int = 3,
-                    topics: str = "") -> None:
-    """Add a row to sources.csv."""
+def _load_sources() -> tuple[list[dict], list[str]]:
     with open(SOURCES_CSV, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
-        rows = list(reader)
+        return list(reader), reader.fieldnames or []
 
-    new_row = {fn: "" for fn in fieldnames}
-    new_row.update({
-        "source_id": source_id,
-        "title": title,
-        "filename": filename,
-        "url": url,
-        "source_type": "markdown",
-        "department": department,
-        "scope": scope,
-        "priority": str(priority),
-        "need_login": "no",
-        "update_frequency": "monthly",
-        "note": f"auto-ingested via review_staging {datetime.now().strftime('%Y-%m-%d')}",
-        "topics": topics or department,
-        "crawl_url": url,
-        "crawl_method": "static",
-        "crawl_frequency": "monthly",
-        "last_crawled_at": datetime.now().strftime("%Y-%m-%d"),
-        "content_hash": "",
-        "stale_after_days": "180",
-        "auth_required": "false",
-        "chunk_strategy": "heading",
-    })
-    rows.append(new_row)
 
+def _save_sources(rows: list[dict], fieldnames: list[str]) -> None:
     with open(SOURCES_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
-    print(f"[sources.csv] Registered {source_id}")
 
 
-def accept_document(md_file: Path, meta_file: Path | None, auto: bool = False):
-    """Accept document: move to processed/, register in sources.csv."""
-    url = ""
-    title = ""
-    department = ""
-    if meta_file and meta_file.exists():
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-        url = meta.get("url", "")
-        title = meta.get("title", "")
-
-    content = md_file.read_text(encoding="utf-8")
-    if not title:
-        # Extract title from first heading
-        for line in content.split("\n"):
-            if line.startswith("# "):
-                title = line[2:].strip()
-                break
-    if not title:
-        title = md_file.stem
-
-    source_id = generate_source_id(md_file, meta_file)
-
-    # Copy to processed/
-    dest = PROCESSED_DIR / md_file.name
-    shutil.copy2(str(md_file), str(dest))
-
-    # Register
-    register_source(source_id, title, md_file.name, url=url, department=department)
-
-    # Remove from staging
-    md_file.unlink(missing_ok=True)
-    if meta_file:
-        meta_file.unlink(missing_ok=True)
-
-    print(f"[ACCEPT] {title}")
-    print(f"  source_id: {source_id}")
-    print(f"  file: {dest}")
-    print(f"  Next: PYTHONPATH=. python scripts/build_chunks.py && python scripts/build_index.py")
+def _find_staged() -> list[dict[str, Any]]:
+    if not STAGING_DIR.exists():
+        return []
+    items = []
+    for meta_file in sorted(STAGING_DIR.glob("*.meta.json")):
+        try:
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            md_file = meta.get("file_path", "")
+            if md_file and Path(md_file).exists():
+                meta["_meta_file"] = str(meta_file)
+                meta["_md_file"] = md_file
+                items.append(meta)
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return items
 
 
-def reject_document(md_file: Path, meta_file: Path | None):
-    """Reject document: archive it."""
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    archive_name = f"rejected_{ts}_{md_file.name}"
-    shutil.move(str(md_file), str(ARCHIVE_DIR / archive_name))
-    if meta_file and meta_file.exists():
-        shutil.move(str(meta_file), str(ARCHIVE_DIR / archive_name.replace(".md", ".meta.json")))
-    print(f"[REJECT] Archived to {ARCHIVE_DIR / archive_name}")
+def _show_item(item: dict, index: int, total: int) -> None:
+    sid = item.get("source_id", "?")
+    url = item.get("url", "")
+    status = item.get("status", "?")
+    note = item.get("note", "")
+    md_file = item.get("_md_file", "")
+
+    print(f"\n{'='*70}")
+    print(f"[{index}/{total}] {sid}")
+    print(f"  URL:     {url[:100]}")
+    print(f"  Status:  {status}")
+    print(f"  Note:    {note}")
+    print(f"  File:    {md_file}")
+
+    if md_file:
+        try:
+            content = Path(md_file).read_text(encoding="utf-8")
+            lines = content.split("\n")
+            print(f"\n  -- Preview (first 20 lines, {len(lines)} total, {len(content)} chars) --")
+            for line in lines[:20]:
+                print(f"  {line[:130]}")
+        except Exception:
+            pass
 
 
-def interactive_review():
-    """Interactive review loop."""
-    items = list_staged()
+def _accept(item: dict) -> bool:
+    sid = item.get("source_id", "")
+    md_file = item.get("_md_file", "")
+    new_hash = item.get("content_hash", "")
+
+    if not sid or not md_file:
+        print("  [ERROR] Missing source_id or file path")
+        return False
+
+    src_path = Path(md_file)
+    if not src_path.exists():
+        print(f"  [ERROR] Source file not found: {md_file}")
+        return False
+
+    dst_path = PROCESSED_DIR / src_path.name
+    shutil.copy(src_path, dst_path)
+    print(f"  [OK] Copied to {dst_path}")
+
+    rows, fieldnames = _load_sources()
+    updated = False
+    today = date.today().isoformat()
+    for row in rows:
+        if row.get("source_id", "").strip() == sid:
+            row["content_hash"] = new_hash
+            row["last_crawled_at"] = today
+            old_filename = row.get("filename", "")
+            if old_filename and old_filename != dst_path.name:
+                # Archive old file
+                old_path = PROCESSED_DIR / old_filename
+                if old_path.exists():
+                    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(old_path), str(ARCHIVE_DIR / old_filename))
+                    print(f"  [OK] Archived old: {old_filename}")
+            row["filename"] = dst_path.name
+            updated = True
+            break
+
+    if updated:
+        _save_sources(rows, fieldnames)
+        print(f"  [OK] Updated sources.csv (hash={new_hash[:12]}...)")
+    else:
+        print(f"  [WARN] source_id '{sid}' not found in sources.csv")
+
+    # Clean up staging
+    meta_path = Path(item.get("_meta_file", ""))
+    if meta_path.exists():
+        meta_path.unlink()
+    if src_path.exists():
+        src_path.unlink()
+
+    return True
+
+
+def _reject(item: dict) -> None:
+    for p in [item.get("_md_file", ""), item.get("_meta_file", "")]:
+        if p and Path(p).exists():
+            Path(p).unlink()
+    print(f"  [OK] Rejected")
+
+
+def interactive_review() -> int:
+    items = _find_staged()
     if not items:
-        print("No staged documents. Submit URLs via POST /admin/ingest_url")
-        return
-
-    print(f"Found {len(items)} staged document(s).\n")
-    for i, (md_file, meta_file) in enumerate(items):
-        show_document(md_file, meta_file)
-        while True:
-            action = input("\n[a]ccept / [r]eject / [s]kip / [q]uit? ").lower().strip()
-            if action in ("a", "accept"):
-                accept_document(md_file, meta_file)
-                break
-            elif action in ("r", "reject"):
-                reject_document(md_file, meta_file)
-                break
-            elif action in ("s", "skip"):
-                print(f"[SKIP] {md_file.name}")
-                break
-            elif action in ("q", "quit"):
-                print("Quit.")
-                return
-            else:
-                print("Invalid choice. Enter a/r/s/q.")
-
-
-def main():
-    if "--list" in sys.argv:
-        items = list_staged()
-        print(f"Staged documents: {len(items)}")
-        for md_file, _ in items:
-            print(f"  {md_file.name} ({md_file.stat().st_size} bytes)")
+        print("No staged documents to review.")
         return 0
 
-    if "--accept" in sys.argv:
-        idx = sys.argv.index("--accept")
-        if idx + 1 < len(sys.argv):
-            fname = sys.argv[idx + 1]
-            md_file = STAGING_DIR / fname
-            if not md_file.exists():
-                print(f"Error: {md_file} not found", file=sys.stderr)
-                return 1
-            meta_file = Path(str(md_file).replace(".md", ".meta.json"))
-            if not meta_file.exists():
-                meta_file = None
-            accept_document(md_file, meta_file)
-            return 0
+    total = len(items)
+    stats = {"accepted": 0, "rejected": 0, "skipped": 0}
 
-    # Interactive mode
-    interactive_review()
+    for i, item in enumerate(items, 1):
+        _show_item(item, i, total)
+        while True:
+            choice = input("\n  [a]ccept  [r]eject  [s]kip  [q]uit ? ").strip().lower()
+            if choice in ("a", "accept"):
+                if _accept(item):
+                    stats["accepted"] += 1
+                break
+            elif choice in ("r", "reject"):
+                _reject(item)
+                stats["rejected"] += 1
+                break
+            elif choice in ("s", "skip"):
+                stats["skipped"] += 1
+                break
+            elif choice in ("q", "quit"):
+                print(f"\nQuit. {stats['accepted']} accepted, {stats['rejected']} rejected, "
+                      f"{stats['skipped']} skipped, {total - i} remaining.")
+                return 0
+            else:
+                print("  Enter a/r/s/q")
+
+    print(f"\nDone: {stats['accepted']} accepted, {stats['rejected']} rejected, "
+          f"{stats['skipped']} skipped")
     return 0
+
+
+def list_staged() -> int:
+    items = _find_staged()
+    if not items:
+        print("No staged documents.")
+        return 0
+    print(f"{len(items)} staged document(s):\n")
+    for item in items:
+        print(f"  [{item.get('status', '?')}] {item.get('source_id', '?')}")
+        print(f"    URL:  {item.get('url', '')[:100]}")
+        print(f"    Note: {item.get('note', '')}")
+        print()
+    return 0
+
+
+def auto_accept() -> int:
+    items = _find_staged()
+    if not items:
+        print("No staged documents.")
+        return 0
+    accepted = 0
+    for item in items:
+        print(f"Auto-accepting: {item.get('source_id', '?')}...")
+        if _accept(item):
+            accepted += 1
+    print(f"\nAccepted {accepted}/{len(items)}")
+    return 0
+
+
+def main() -> int:
+    if "--list" in sys.argv:
+        return list_staged()
+    elif "--auto" in sys.argv:
+        return auto_accept()
+    else:
+        return interactive_review()
 
 
 if __name__ == "__main__":
