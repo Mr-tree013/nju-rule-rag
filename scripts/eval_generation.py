@@ -60,15 +60,26 @@ JUDGE_PROMPT = """你是一个RAG问答质量评审专家。请根据以下信�
 
 
 def build_context(chunks_json: str) -> str:
-    """Extract titles from source JSON for context."""
+    """Build judge context from source chunks with actual content.
+
+    Each chunk includes title + first 300 chars of content so the judge
+    can verify whether facts in the answer are supported.
+    """
     try:
         sources = json.loads(chunks_json)
     except (json.JSONDecodeError, TypeError):
         return "（无参考资料）"
     parts = []
-    for s in sources:
-        parts.append(f"- {s.get('title', '未知')} (source_id={s.get('source_id', '')})")
-    return "\n".join(parts) if parts else "（无参考资料）"
+    for i, s in enumerate(sources, 1):
+        title = s.get('title', '未知')
+        sid = s.get('source_id', '')
+        content = s.get('content', '')
+        # Truncate content for token budget
+        preview = content[:300].replace('\n', ' ')
+        parts.append(
+            f"[{i}] {title} ({sid})\n    {preview}"
+        )
+    return "\n\n".join(parts) if parts else "（无参考资料）"
 
 
 def judge_answer(
