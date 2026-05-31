@@ -1,0 +1,25 @@
+topic,questions,sources,avg_faithfulness,avg_relevance,avg_recall5,avg_mrr,avg_gold_chunk_rank,f_leq_2_pct,priority_score,recommendation
+浦口校区,3,1,2.33,3.0,1.0,1.0,1.0,233%,8.0,URGENT: add 5+ sources immediately
+考研,3,1,2.67,3.67,0.667,0.444,15.0,267%,7.0,HIGH: add 3-5 sources this week
+学业预警,5,2,3.0,4.4,1.0,0.567,2.0,300%,5.0,HIGH: add 3-5 sources this week
+体育,3,2,2.33,4.0,1.0,0.556,2.3,233%,4.0,MEDIUM: add 1-3 sources when possible
+周边生活,3,2,2.33,3.33,1.0,0.833,1.3,233%,4.0,MEDIUM: add 1-3 sources when possible
+处分/退学/学位,10,7,2.4,3.8,0.8,0.348,7.4,240%,3.71,MEDIUM: add 1-3 sources when possible
+校园安全,3,2,2.67,4.33,0.667,0.389,3.3,267%,3.5,MEDIUM: add 1-3 sources when possible
+重修,5,4,2.2,3.6,1.0,0.45,2.8,220%,3.5,MEDIUM: add 1-3 sources when possible
+校园生活,15,11,2.47,3.8,0.867,0.822,6.5,247%,3.45,MEDIUM: add 1-3 sources when possible
+成绩/绩点,5,4,2.6,3.6,0.6,0.29,18.4,260%,3.0,MEDIUM: add 1-3 sources when possible
+辅修,4,3,2.75,4.25,0.75,0.323,4.0,275%,3.0,MEDIUM: add 1-3 sources when possible
+缓考,5,5,2.2,3.6,0.6,0.157,18.8,220%,2.8,LOW: current coverage adequate
+学生社团,4,3,3.0,4.25,0.5,0.417,12.5,300%,2.67,LOW: current coverage adequate
+选课,6,6,2.33,3.83,0.0,0.0,41.0,233%,2.67,LOW: current coverage adequate
+校历,3,3,2.67,4.0,0.667,0.222,15.7,267%,2.33,LOW: current coverage adequate
+保研推免,3,3,3.0,4.0,0.333,0.204,17.3,300%,2.0,LOW: current coverage adequate
+学籍异动,5,6,2.6,3.4,1.0,0.633,2.0,260%,2.0,LOW: current coverage adequate
+补考,5,7,2.2,3.4,1.0,0.59,2.6,220%,2.0,LOW: current coverage adequate
+出国交流,4,6,2.25,3.5,1.0,0.625,2.5,225%,1.83,LOW: current coverage adequate
+转专业,4,6,2.25,3.25,1.0,0.362,3.2,225%,1.83,LOW: current coverage adequate
+信息化工具,5,7,2.6,4.0,1.0,0.74,2.0,260%,1.71,LOW: current coverage adequate
+录取入学,5,7,2.6,3.4,1.0,0.717,2.0,260%,1.71,LOW: current coverage adequate
+交换/课程认定,5,7,2.8,4.0,0.6,0.362,11.0,280%,1.57,LOW: current coverage adequate
+资助政策,5,14,2.4,4.0,0.8,0.352,4.2,240%,0.93,LOW: current coverage adequate
