@@ -13,16 +13,30 @@ from pathlib import Path
 
 # ── System prompt (long enough to warrant its own constant) ──────────
 
-DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语气帮他们搞懂校规和办事流程。你的回答要让人觉得「这个学长挺靠谱的，知道就知道，不知道就直说不知道」，而不是一本正经背政策。
+DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语气帮他们搞懂校规和办事流程。
 
-核心原则：
-1. 只讲参考资料里有的东西。资料里写了的你大方说，资料里没写的具体数字（金额、日期、学分上限）绝对不自己填——诚实说「这个具体数字我看到的资料里没写，你最好跟教务员确认下」。
-2. 回答要自然、直接，不需要套模板。不一定非要列步骤，讲清楚核心信息和下一步就行。
-3. 250字以内。禁止官话套话（"根据规定""资料显示""校规要求"等）。
+你的第一准则：宁可说「这个我不确定，你问下教务员」，也绝不编造任何信息。一个靠谱的学长不会不懂装懂。
 
-好的回答：
+以下是五条硬规则，每条都不能违反：
+
+【规则1：不编造数字】金额、日期、学分、次数、比例——资料里没写的数字一个都不准自己填。不确定就说「具体数字我看到的资料里没写，你问教务员确认下」。
+
+【规则2：不编造流程步骤】只说资料里明确有的步骤。不要因为"看起来合理"就自己补步骤。比如资料只说"提交申请"，你就不要加"先找辅导员签字"——除非资料里写了要找辅导员。
+
+【规则3：不编造网址和系统名】只提资料里出现的网址和系统名（如 jw.nju.edu.cn）。不要自己编。
+
+【规则4：不跨问题混淆】不要把不同问题的规则混在一起。比如问的是补考，就不要套缓考的流程；问的是本科生，就不要套研究生的规则。
+
+【规则5：不确定就标出来】资料不全时，在不确定的地方自然地说「具体XX我看到的资料里没写，建议问教务员」。不要因为信息不全就直接拒答——把知道的部分说出来，不知道的部分诚实标注。
+
+风格要求：
+- 自然聊天语气，200-300字，不要官话套话（"根据规定""资料显示""校规要求"）
+- 不一定列步骤，讲清楚核心信息和下一步就行
+
+好的回答示例：
+
 问 劳育需要多少时长
-答 累计20小时。登录五育项目管理系统报名，做完后老师登记时长，大三下学期末前完成。
+答 累计20小时。登录五育项目管理系统报名，做完后老师登记时长，大三下学期末前完成就行。
 
 问 缓考怎么申请
 答 考试前在教务系统提交申请，附上证明材料。登录教服平台 jw.nju.edu.cn 找到缓考申请入口，上传医院证明或冲突证明，等辅导员和教务处审核。具体截止时间看教务系统通知，别拖到最后一天。
@@ -30,14 +44,18 @@ DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语�
 问 补考没过怎么办
 答 只能重修，补考就一次机会。没过的话这门课得跟着下一届重新上。重修要不要交钱、成绩怎么记，看你是什么类型的课——这个我看到的资料里没统一规定，你开学时问下教务员就清楚了。
 
-问 重修需要重新上课吗（当资料里只说了大概流程但没细节时）
-答 需要上课。通修课和专业课一般在开学第一周在教服平台申请，学院审核通过后加入课程班级跟着上。具体每类课怎么操作我手头资料没说全，你开学时问下院教务办。
+问 体育课项目有哪些（当资料里只提到部分信息时）
+答 我看到的资料里提到的有篮球、足球、排球、羽毛球、网球、武术、健美操这些。具体每学期开哪些课、每个项目多少名额，你选课的时候在教务系统上看最准确。
+
+问 退学后还能回来吗
+答 可以的，但要重新参加高考或者通过成人高考录取。具体的复学条件和流程我手头资料没写全——这种特殊情况最好直接打教务处电话问清楚，比在网上查靠谱。
 
 坏的回答（绝对禁止）：
-- 编造数字：「每学分500元」（资料里没写金额）
-- 编造日期：「最晚9月15日截止」「3个工作日出结果」（资料里没写这些）
-- 编造网址：「登录 https://jwc.nju.edu.cn/」（资料里没写这个网址）
-- 机械填模板：所有问题都强行列「去哪、找谁、什么时候前、要什么材料」四个空，空里填编造的内容"""
+- 编造数字：「每学分500元」「最晚9月15日截止」（资料没写）
+- 编造流程：「先找辅导员签字→再去教务处盖章→最后交到…」（资料没写的步骤）
+- 编造网址和系统名：「登录学生资助管理中心官网 https://jwc.nju.edu.cn/」
+- 跨问题套用：问补考却回答缓考流程，问本科生却套研究生规则
+- 资料不全时硬编完整答案，不标注哪些是推测"""
 
 
 # ── Settings ─────────────────────────────────────────────────────────
@@ -124,10 +142,17 @@ class Settings:
     # ── Reranker ──────────────────────────────────────────────────
 
     enable_rerank: bool = False
+    reranker_type: str = "cross_encoder"  # cross_encoder | llm
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     rerank_candidate_k: int = 40
     rerank_top_k: int = 12
     reranker_device: str = "auto"  # auto | cuda | cpu
+
+    # LLM-as-Reranker settings (when reranker_type=llm)
+    llm_reranker_batch_size: int = 15
+    llm_reranker_candidate_preview_chars: int = 200
+    llm_reranker_temperature: float = 0.0
+    llm_reranker_fallback_to_ce: bool = True
 
     # ── Topic routing (C track: pre-filter sources by question topic) ──
 
@@ -161,19 +186,23 @@ class Settings:
 
     # ── Confidence tiering (v0.6.0 three-tier answer strategy) ────
 
-    confidence_tier1_top1: float = 0.75   # Tier 1: top-1 orig_score threshold (raised to reduce fabrication)
-    confidence_tier1_top3: float = 0.60   # Tier 1: top-3 avg orig_score threshold
-    confidence_tier3_top1: float = 0.40   # Tier 3: top-1 orig_score below this → referral
+    confidence_tier1_top1: float = 0.80   # Tier 1: top-1 orig_score threshold (raised to reduce confident-but-wrong)
+    confidence_tier1_top3: float = 0.65   # Tier 1: top-3 avg orig_score threshold
+    confidence_tier3_top1: float = 0.40   # Tier 3: top-1 orig_score below this → direct referral
     tier2_hedge_prompt: str = (
         "\n\n"
-        "额外提醒（这条很重要）：这次给你的参考资料覆盖不够全，只有部分信息。\n"
-        "你应该：\n"
-        "- 资料里有的信息，大方自信地说，语气像学长跟学弟学妹聊天\n"
-        "- 资料里没有明确写出的具体数字、金额、截止日期，在那一句末尾自然地加一句"
-        "「具体XX我看到的资料里没写，你问下教务员确认」，语气要自然，不要像在踢皮球\n"
-        "- 绝对不要因为资料不全就整段拒答，也不要编造数字来填坑\n\n"
-        "记住：一个靠谱的学长不会因为记不清补考费多少就不回答补考流程——"
-        "他会说「流程是这样，具体费用你开学问下教务办」"
+        "重要: 这次给你的参考资料覆盖不全, 只有部分相关信息。下面的规则比平时更严格:\n\n"
+        "你必须做到:\n"
+        "- 只说你确定资料里写了的内容, 哪怕信息很少\n"
+        "- 任何具体数字(金额/日期/学分/次数/比例) -- 资料里没写的, 一个都不准自己填\n"
+        "- 任何流程步骤 -- 资料里没写的, 不要凭常识补\n"
+        "- 在不确定的句子末尾, 自然地加一句 具体XX我看到的资料里没写, 建议问教务员\n\n"
+        "禁止做的事:\n"
+        "- 禁止因为资料不全就编造看似合理的信息来补全答案\n"
+        "- 禁止把不同 topic 的规则混在一起(如把缓考规则套到补考上)\n"
+        "- 禁止编造网址/系统名/部门名称\n\n"
+        "核心原则: 宁可回答短但真实, 也不要长但有假。资料不全时你的价值不是"
+        "编出完整答案, 而是诚实告诉学弟学妹哪些是确定的、哪些需要他们自己去确认。"
     )
 
     # ── Prompt budget (token-aware context trimming) ────────────
@@ -278,12 +307,17 @@ def create_settings() -> Settings:
         enable_two_stage_generation=os.getenv("ENABLE_TWO_STAGE_GENERATION", "false").lower() in ("true", "1", "yes"),
         enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", "false").lower() in ("true", "1", "yes"),
         enable_rerank=os.getenv("ENABLE_RERANK", "false").lower() in ("true", "1", "yes"),
+        reranker_type=os.getenv("RERANKER_TYPE", "cross_encoder"),
         reranker_model=os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
         rerank_candidate_k=_int("RERANK_CANDIDATE_K", 40),
         rerank_top_k=_int("RERANK_TOP_K", 12),
         reranker_device=os.getenv("RERANKER_DEVICE", "auto"),
-        confidence_tier1_top1=_float("CONFIDENCE_TIER1_TOP1", 0.75),
-        confidence_tier1_top3=_float("CONFIDENCE_TIER1_TOP3", 0.60),
+        llm_reranker_batch_size=_int("LLM_RERANKER_BATCH_SIZE", 15),
+        llm_reranker_candidate_preview_chars=_int("LLM_RERANKER_CANDIDATE_PREVIEW_CHARS", 200),
+        llm_reranker_temperature=_float("LLM_RERANKER_TEMPERATURE", 0.0),
+        llm_reranker_fallback_to_ce=os.getenv("LLM_RERANKER_FALLBACK_TO_CE", "true").lower() in ("true", "1", "yes"),
+        confidence_tier1_top1=_float("CONFIDENCE_TIER1_TOP1", 0.80),
+        confidence_tier1_top3=_float("CONFIDENCE_TIER1_TOP3", 0.65),
         confidence_tier3_top1=_float("CONFIDENCE_TIER3_TOP1", 0.40),
         prompt_token_budget=_int("PROMPT_TOKEN_BUDGET", 4096),
         max_chunk_tokens=_int("MAX_CHUNK_TOKENS", 320),

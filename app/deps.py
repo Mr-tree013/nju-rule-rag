@@ -95,11 +95,29 @@ def create_fallback_llm_client(settings: Settings | None = None) -> LLMClient | 
     )
 
 
-def create_reranker(settings: Settings | None = None):
-    """Build a ``CrossEncoderReranker`` if enabled, else None."""
+def create_reranker(settings: Settings | None = None, llm=None):
+    """Build a reranker (cross-encoder or LLM) if enabled, else None."""
     s = settings or _get_settings()
     if not s.enable_rerank:
         return None
+
+    if s.reranker_type == "llm":
+        from app.reranker import LLMReranker, CrossEncoderReranker
+        client = llm or create_llm_client(s)
+        fallback = None
+        if s.llm_reranker_fallback_to_ce:
+            fallback = CrossEncoderReranker(
+                model_name=s.reranker_model, device=s.reranker_device
+            )
+        print(f"[Reranker] Using LLM-as-Reranker (model={s.llm_model})")
+        return LLMReranker(
+            client,
+            batch_size=s.llm_reranker_batch_size,
+            candidate_preview_chars=s.llm_reranker_candidate_preview_chars,
+            temperature=s.llm_reranker_temperature,
+            fallback_reranker=fallback,
+        )
+
     from app.reranker import CrossEncoderReranker
     return CrossEncoderReranker(model_name=s.reranker_model, device=s.reranker_device)
 

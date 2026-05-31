@@ -4,11 +4,13 @@ Evaluate retrieval quality using gold source annotations.
 Usage:
     python scripts/eval_retrieval.py [--output-dir data/eval]
 
-Requires gold_source_ids column in questions.csv (task 2.1).
+Core metrics: recall@5, recall@10, MRR, nDCG@10, gold_chunk_rank.
+Context Precision@10 is reference-only (ceiling ~20% given 1-2 gold chunks/question).
 """
 
 import csv
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -49,9 +51,9 @@ def compute_metrics(
 
     reranker = None
     if use_reranker:
-        from app.reranker import CrossEncoderReranker
+        from app.deps import create_reranker
         print("Loading reranker...")
-        reranker = CrossEncoderReranker(model_name=settings.reranker_model)
+        reranker = create_reranker(settings)
 
     k_values = [1, 3, 5, 10, 20, 40]
     eval_top_k = settings.rerank_candidate_k if use_reranker else 50
@@ -61,8 +63,10 @@ def compute_metrics(
     # Per-question results
     recall_at_k: dict[int, list[float]] = {k: [] for k in k_values}
     mrr_values: list[float] = []
-    precision_values: list[float] = []
-    recall_values: list[float] = []  # context recall
+    ndcg_at_10: list[float] = []
+    gold_ranks: list[int] = []  # 1-indexed rank of highest gold chunk
+    precision_values: list[float] = []  # reference-only
+    recall_values: list[float] = []     # reference-only
     no_gold_count = 0
 
     for i, q in enumerate(questions, start=1):
@@ -123,7 +127,24 @@ def compute_metrics(
         else:
             mrr_values.append(0.0)
 
-        # ── Context precision / recall ── (use top 10 as reference)
+        # ── nDCG@10 ── (relevance: 1 for gold, 0 otherwise)
+        dcg = 0.0
+        for rank_i, src in enumerate(retrieved_sources[:10]):
+            rel = 1 if src in gold_ids else 0
+            dcg += rel / math.log2(rank_i + 2)  # rank_i is 0-indexed
+        ideal_n = min(len(gold_ids), 10)
+        idcg = sum(1.0 / math.log2(i + 2) for i in range(ideal_n))
+        ndcg_at_10.append(dcg / idcg if idcg > 0 else 0.0)
+
+        # ── Gold chunk rank ── (1-indexed, capped at eval_top_k+1 if not found)
+        best_rank = eval_top_k + 1
+        for rank, src in enumerate(retrieved_sources, start=1):
+            if src in gold_ids:
+                best_rank = rank
+                break
+        gold_ranks.append(best_rank)
+
+        # ── Context precision / recall ── (reference-only)
         retrieved_n = set(retrieved_sources[:10])
         hits = gold_ids & retrieved_n
         precision = len(hits) / min(10, len(retrieved_sources[:10])) if retrieved_sources[:10] else 0.0
@@ -140,6 +161,15 @@ def compute_metrics(
     def avg(vals: list[float]) -> float:
         return round(sum(vals) / len(vals), 4) if vals else 0.0
 
+    def _median(vals: list[int]) -> float:
+        if not vals:
+            return 0.0
+        s = sorted(vals)
+        n = len(s)
+        if n % 2 == 1:
+            return float(s[n // 2])
+        return (s[n // 2 - 1] + s[n // 2]) / 2.0
+
     metrics: dict[str, Any] = {
         "evaluated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "total_questions": total,
@@ -149,7 +179,10 @@ def compute_metrics(
     for k in k_values:
         metrics[f"recall@{k}"] = avg(recall_at_k[k])
     metrics["mrr"] = avg(mrr_values)
-    metrics["context_precision@10"] = avg(precision_values)
+    metrics["ndcg@10"] = avg(ndcg_at_10)
+    metrics["gold_chunk_rank"] = avg([float(r) for r in gold_ranks])
+    metrics["gold_chunk_rank_median"] = _median(gold_ranks)
+    metrics["context_precision@10"] = avg(precision_values)  # reference-only
     metrics["context_recall@10"] = avg(recall_values)
 
     suffix = ""
@@ -162,7 +195,8 @@ def compute_metrics(
         writer = csv.writer(f)
         writer.writerow(["id", "question", "gold_source_ids", "mrr"] +
                          [f"recall@{k}" for k in k_values] +
-                         ["precision@10", "recall@10"])
+                         ["ndcg@10", "gold_chunk_rank",
+                          "precision@10", "recall@10"])
         idx = 0
         for q in questions:
             qid = q.get("id", "")
@@ -178,6 +212,8 @@ def compute_metrics(
             ]
             for k in k_values:
                 row.append(recall_at_k[k][idx] if idx < len(recall_at_k[k]) else 0)
+            row.append(ndcg_at_10[idx] if idx < len(ndcg_at_10) else 0)
+            row.append(gold_ranks[idx] if idx < len(gold_ranks) else 0)
             row.append(precision_values[idx] if idx < len(precision_values) else 0)
             row.append(recall_values[idx] if idx < len(recall_values) else 0)
             writer.writerow(row)
@@ -218,11 +254,18 @@ def main() -> int:
     print("Retrieval Evaluation Summary")
     print("─" * 50)
     print(f"  Evaluated:               {metrics['evaluated']}/{metrics['total_questions']}")
+    print()
+    print("  ── Core Metrics ──")
     for k in [1, 3, 5, 10, 20, 40]:
         key = f"recall@{k}"
         print(f"  {key:<24} {metrics[key]:.3f}")
     print(f"  MRR:                      {metrics['mrr']:.4f}")
-    print(f"  Context Precision@10:     {metrics['context_precision@10']:.4f}")
+    print(f"  nDCG@10:                  {metrics['ndcg@10']:.4f}")
+    print(f"  Gold Chunk Rank (avg):    {metrics['gold_chunk_rank']:.1f}")
+    print(f"  Gold Chunk Rank (median): {metrics['gold_chunk_rank_median']:.0f}")
+    print()
+    print("  ── Reference Only ──")
+    print(f"  Context Precision@10:     {metrics['context_precision@10']:.4f}  (ceiling ~20%)")
     print(f"  Context Recall@10:        {metrics['context_recall@10']:.4f}")
 
     return 0

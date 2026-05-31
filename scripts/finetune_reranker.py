@@ -21,12 +21,13 @@ from sentence_transformers import CrossEncoder, InputExample
 from torch.utils.data import DataLoader
 
 ROOT = Path(__file__).resolve().parent.parent
-TRAIN_FILE = ROOT / "data" / "eval" / "reranker_train.jsonl"
-TEST_FILE = ROOT / "data" / "eval" / "reranker_test.jsonl"
+# Use /tmp for training data to avoid WSL2 /mnt/c/ disk bottleneck
+TRAIN_FILE = Path("/tmp/reranker_train.jsonl")
+TEST_FILE = Path("/tmp/reranker_test.jsonl")
 MODEL_NAME = "BAAI/bge-reranker-v2-m3"
-OUTPUT_DIR = ROOT / "data" / "models" / "bge-reranker-nju"
+OUTPUT_DIR = Path("/tmp/bge-reranker-nju")
 
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 EPOCHS = 3
 LEARNING_RATE = 2e-5
 WARMUP_RATIO = 0.1
@@ -45,7 +46,12 @@ def load_pairs(path: Path) -> list[InputExample]:
 
 
 def evaluate(model: CrossEncoder, examples: list[InputExample]) -> dict:
-    """Compute accuracy, precision, recall on test set."""
+    """Compute accuracy, precision, recall on test set.
+
+    WARNING: These metrics are on the same distribution as training data.
+    They do NOT reflect real retrieval quality. Use eval_retrieval.py --rerank
+    for meaningful evaluation.
+    """
     correct = 0
     tp = fp = fn = tn = 0
     for ex in examples:
@@ -69,11 +75,6 @@ def evaluate(model: CrossEncoder, examples: list[InputExample]) -> dict:
     rec = tp / (tp + fn) if (tp + fn) else 0
     f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0
 
-    # Also check score distribution
-    scores = [model.predict([ex.texts])[0] for ex in examples[:30]]
-    pos_scores = [model.predict([ex.texts])[0] for ex in examples if ex.label == 1][:20]
-    neg_scores = [model.predict([ex.texts])[0] for ex in examples if ex.label == 0][:20]
-
     return {
         "accuracy": acc,
         "precision": prec,
@@ -81,12 +82,7 @@ def evaluate(model: CrossEncoder, examples: list[InputExample]) -> dict:
         "f1": f1,
         "n": n,
         "tp": tp, "fp": fp, "fn": fn, "tn": tn,
-        "pos_score_mean": sum(pos_scores) / len(pos_scores) if pos_scores else 0,
-        "neg_score_mean": sum(neg_scores) / len(neg_scores) if neg_scores else 0,
-        "score_separation": (
-            (sum(pos_scores) / len(pos_scores) - sum(neg_scores) / len(neg_scores))
-            if pos_scores and neg_scores else 0
-        ),
+        "train_set_only": True,
     }
 
 
@@ -130,9 +126,11 @@ def main():
 
     # ── Baseline evaluation ────────────────────────────────────────
     print("\n=== Baseline (before fine-tuning) ===")
+    print("  (Training distribution only — not real pipeline performance)")
     base_metrics = evaluate(model, test_examples)
     for k, v in base_metrics.items():
-        print(f"  {k}: {v}")
+        if k != "train_set_only":
+            print(f"  {k}: {v}")
 
     # ── Train ──────────────────────────────────────────────────────
     train_loader = DataLoader(train_examples, shuffle=True, batch_size=BATCH_SIZE)
@@ -157,26 +155,35 @@ def main():
         warmup_steps=warmup_steps,
         optimizer_params={"lr": LEARNING_RATE},
         output_path=str(OUTPUT_DIR),
-        save_best_model=True,
+        save_best_model=False,
         show_progress_bar=True,
     )
 
     train_time = time.time() - t0
     print(f"\nTraining completed in {train_time:.0f}s ({train_time/60:.1f} min)")
 
+    # fit() with save_best_model=False does not save — persist manually
+    model.save(str(OUTPUT_DIR))
+    print(f"Model saved to: {OUTPUT_DIR}")
+
     # ── Final evaluation ───────────────────────────────────────────
     print("\n=== After fine-tuning ===")
+    print("  (Training distribution only — not real pipeline performance)")
     ft_metrics = evaluate(model, test_examples)
     for k, v in ft_metrics.items():
-        print(f"  {k}: {v}")
+        if k != "train_set_only":
+            print(f"  {k}: {v}")
 
     # ── Summary ────────────────────────────────────────────────────
     print(f"\n=== Summary ===")
-    print(f"  Base F1:     {base_metrics['f1']:.4f}")
-    print(f"  Fine-tuned F1: {ft_metrics['f1']:.4f}")
-    print(f"  Improvement: {ft_metrics['f1'] - base_metrics['f1']:+.4f}")
-    print(f"  Score separation: {base_metrics['score_separation']:.4f} → {ft_metrics['score_separation']:.4f}")
-    print(f"  Model saved to: {OUTPUT_DIR}")
+    print(f"  Base F1:           {base_metrics['f1']:.4f}")
+    print(f"  Fine-tuned F1:     {ft_metrics['f1']:.4f}")
+    print(f"  Improvement:       {ft_metrics['f1'] - base_metrics['f1']:+.4f}")
+    print(f"  Training time:     {train_time:.0f}s ({train_time/60:.1f} min)")
+    print(f"  Model saved to:    {OUTPUT_DIR}")
+    print(f"\n  WARNING: These metrics are on the same distribution as training.")
+    print(f"  Run `PYTHONPATH=. python scripts/eval_retrieval.py --rerank` to")
+    print(f"  measure real retrieval quality (recall@5, MRR, gold_chunk_rank).")
 
     return 0
 

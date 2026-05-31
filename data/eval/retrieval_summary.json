@@ -1,15 +1,18 @@
 {
-  "evaluated_at": "2026-05-30 17:04:09",
+  "evaluated_at": "2026-05-31 11:33:52",
   "total_questions": 118,
   "evaluated": 118,
   "skipped_no_gold": 0,
-  "recall@1": 0.3814,
-  "recall@3": 0.7119,
-  "recall@5": 0.8305,
-  "recall@10": 0.8983,
+  "recall@1": 0.322,
+  "recall@3": 0.6695,
+  "recall@5": 0.8136,
+  "recall@10": 0.8814,
   "recall@20": 0.9153,
   "recall@40": 0.9746,
-  "mrr": 0.5669,
-  "context_precision@10": 0.1203,
-  "context_recall@10": 0.604
+  "mrr": 0.5198,
+  "ndcg@10": 0.7354,
+  "gold_chunk_rank": 5.9831,
+  "gold_chunk_rank_median": 2.0,
+  "context_precision@10": 0.1136,
+  "context_recall@10": 0.5842
 }
