@@ -73,23 +73,38 @@ class QueryRewriter:
     still uses the original question for semantic matching.
     """
 
-    def __init__(self, llm_client):
+    def __init__(self, llm_client, timeout: int = 5):
         self._llm = llm_client
+        self._timeout = timeout
 
     def rewrite(self, question: str) -> str:
-        """Return BM25-optimized keyword query, or original if not needed."""
+        """Return BM25-optimized keyword query, or original on failure/timeout."""
         if not should_rewrite(question):
             return question
         try:
-            prompt = REWRITE_PROMPT.format(question=question)
-            result = self._llm.chat(
-                [{"role": "user", "content": prompt}],
-                temperature=0.0,
-            )
-            rewritten = result.strip()
-            if not rewritten or len(rewritten) < 2:
-                return question
-            # Cap length
-            return rewritten[:80]
+            import threading
+            result_container = []
+            error_container = []
+
+            def _call():
+                try:
+                    prompt = REWRITE_PROMPT.format(question=question)
+                    r = self._llm.chat(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.0,
+                    )
+                    result_container.append(r.strip())
+                except Exception as e:
+                    error_container.append(e)
+
+            thread = threading.Thread(target=_call, daemon=True)
+            thread.start()
+            thread.join(timeout=self._timeout)
+
+            if result_container:
+                rewritten = result_container[0]
+                if rewritten and len(rewritten) >= 2:
+                    return rewritten[:80]
+            return question
         except Exception:
             return question
