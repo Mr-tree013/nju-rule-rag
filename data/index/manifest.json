@@ -1,7 +1,7 @@
 {
-  "built_at": "2026-05-31 14:35:32",
+  "built_at": "2026-05-31 15:03:27",
   "chunks_file": "data/chunks/chunks.jsonl",
-  "chunk_count": 4149,
+  "chunk_count": 4291,
   "bm25_index": "data/index/bm25.pkl",
   "chunk_lookup": "data/index/chunk_lookup.json",
   "vector_index": "data/index/chroma",
