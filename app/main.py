@@ -244,7 +244,10 @@ def health_deep():
     from app.config import create_settings
     s = create_settings()
     from app.cache import qa_cache
-    return get_deep_health(s.project_root, cache_stats_fn=qa_cache.stats)
+    result = get_deep_health(s.project_root, cache_stats_fn=qa_cache.stats)
+    # Phase 1.1 — expose fact check status
+    result["fact_check_enabled"] = s.enable_fact_check
+    return result
 
 
 # ── Admin: URL ingestion endpoint (F.4) ──────────────────────────────
