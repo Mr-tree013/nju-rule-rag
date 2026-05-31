@@ -68,9 +68,9 @@ DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语�
 class RetrievalWeights:
     """Weight configuration for hybrid retrieval score merging."""
 
-    bm25: float = 0.30
-    vector: float = 0.60
-    priority: float = 0.10
+    bm25: float = 0.25
+    vector: float = 0.45
+    priority: float = 0.30
 
     def validate(self) -> list[str]:
         total = self.bm25 + self.vector + self.priority
@@ -301,7 +301,7 @@ def create_settings() -> Settings:
         bm25_top_k=_int("BM25_TOP_K", 10),
         vector_top_k=_int("VECTOR_TOP_K", 10),
         hybrid_top_k=_int("HYBRID_TOP_K", 5),
-        retrieval_weights=RetrievalWeights(bm25=0.30, vector=0.60, priority=0.10),
+        retrieval_weights=RetrievalWeights(bm25=0.25, vector=0.45, priority=0.30),
         min_reliable_score=_float("MIN_RELIABLE_SCORE", 0.2),
         high_risk_min_score=_float("HIGH_RISK_MIN_SCORE", 0.25),
         enable_vector=os.getenv("ENABLE_VECTOR", "true").lower() not in ("false", "0", "no"),
