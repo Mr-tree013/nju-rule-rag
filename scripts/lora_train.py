@@ -129,12 +129,9 @@ def main():
         learning_rate=LR,
         warmup_ratio=WARMUP_RATIO,
         logging_steps=10,
-        save_steps=200,
-        save_total_limit=3,
-        eval_strategy="steps" if ds_eval else "no",
-        eval_steps=50 if ds_eval else None,
-        load_best_model_at_end=True if ds_eval else False,
-        metric_for_best_model="eval_loss" if ds_eval else None,
+        save_strategy="epoch",
+        load_best_model_at_end=False,
+        save_total_limit=2,
         bf16=True,
         optim="paged_adamw_8bit",
         report_to="none",
@@ -142,7 +139,7 @@ def main():
         gradient_checkpointing=True,
     )
 
-    callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if ds_eval else []
+    callbacks = []
 
     print(f"\n=== Training ===")
     print(f"  Examples: {len(ds_train)} train + {len(ds_eval) if ds_eval else 0} eval")
