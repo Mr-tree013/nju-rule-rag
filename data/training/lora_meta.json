@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-06-01 00:21:56",
+  "total_pairs": 4158,
+  "train_count": 3853,
+  "holdout_count": 305,
+  "type_distribution": {
+    "full": 2089,
+    "refusal": 1006,
+    "partial": 1063
+  },
+  "holdout_sources": [
+    "nju-guide-004",
+    "nju-guide-009",
+    "nju-guide-011",
+    "nju-guide-017",
+    "nju-guide-023",
+    "nju-guide-028",
+    "nju-guide-033",
+    "nju-jw-014",
+    "nju-jw-023",
+    "nju-jw-043",
+    "nju-jw-051"
+  ]
+}
