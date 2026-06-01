@@ -59,26 +59,59 @@ JUDGE_PROMPT = """你是一个RAG问答质量评审专家。请根据以下信�
 """
 
 
+# Preload chunk lookup from chunks.jsonl (cached globally)
+_CHUNK_LOOKUP: dict[str, str] | None = None
+
+def _load_chunks() -> dict[str, str]:
+    """Load chunk_id → content mapping from chunks.jsonl."""
+    global _CHUNK_LOOKUP
+    if _CHUNK_LOOKUP is not None:
+        return _CHUNK_LOOKUP
+    _CHUNK_LOOKUP = {}
+    chunks_file = ROOT / "data" / "chunks" / "chunks.jsonl"
+    if not chunks_file.exists():
+        return _CHUNK_LOOKUP
+    with open(chunks_file, encoding="utf-8") as f:
+        for line in f:
+            try:
+                c = json.loads(line)
+                cid = c.get("chunk_id", "")
+                content = c.get("content", "")
+                if cid and content:
+                    _CHUNK_LOOKUP[cid] = content
+            except json.JSONDecodeError:
+                continue
+    return _CHUNK_LOOKUP
+
 def build_context(chunks_json: str) -> str:
     """Build judge context from source chunks with actual content.
 
     Each chunk includes title + first 300 chars of content so the judge
     can verify whether facts in the answer are supported.
     """
+    # Try JSON parse first; CSV truncation may corrupt it, so fall back to regex
+    sources = []
     try:
         sources = json.loads(chunks_json)
     except (json.JSONDecodeError, TypeError):
+        # Extract chunk_ids via regex for truncated JSON
+        import re
+        cids = re.findall(r'"chunk_id":\s*"([^"]+)"', chunks_json)
+        sources = [{"chunk_id": cid} for cid in cids]
+    if not sources:
         return "（无参考资料）"
+    lookup = _load_chunks()
     parts = []
     for i, s in enumerate(sources, 1):
-        title = s.get('title', '未知')
+        cid = s.get('chunk_id', '')
+        title = s.get('title', '')
         sid = s.get('source_id', '')
-        content = s.get('content', '')
-        # Truncate content for token budget
+        content = lookup.get(cid, '')
+        if not content:
+            continue
         preview = content[:300].replace('\n', ' ')
-        parts.append(
-            f"[{i}] {title} ({sid})\n    {preview}"
-        )
+        label = f"{title} ({sid})" if title else cid
+        parts.append(f"[{i}] {label}\n    {preview}")
     return "\n\n".join(parts) if parts else "（无参考资料）"
 
 

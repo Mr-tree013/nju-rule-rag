@@ -1,0 +1,26 @@
+FROM /home/mrtree/nju-rule-rag/nju-rule-rag/data/models/qwen3-8b-nju-lora-v2-Q4_K_M.gguf
+
+TEMPLATE """{{- if .Messages }}
+{{- range .Messages }}
+{{- if eq .Role "system" }}<|im_start|>system
+{{ .Content }}<|im_end|>
+{{- end }}
+{{- end }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{- end }}
+{{- if eq .Role "assistant" }}<|im_start|>assistant
+{{ .Content }}<|im_end|>
+{{- end }}
+{{- end }}
+<|im_start|>assistant
+{{- else }}
+{{ .Prompt }}
+{{- end }}"""
+
+PARAMETER num_ctx 4096
+PARAMETER num_predict 400
+PARAMETER temperature 0.15
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"

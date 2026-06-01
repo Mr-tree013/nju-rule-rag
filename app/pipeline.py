@@ -141,10 +141,14 @@ class RAGPipeline:
             confidence_tier=confidence_tier,
         )
 
-        # 9. Call LLM
+        # 9. Call LLM (route high-risk to DeepSeek if enabled)
         t0 = time.time()
         try:
-            if self._settings.enable_two_stage_generation:
+            if (self._settings.enable_high_risk_deepseek
+                    and classification.level == RiskLevel.HIGH
+                    and self._fallback_llm):
+                answer_text = self._generate_with_fallback(messages)
+            elif self._settings.enable_two_stage_generation:
                 answer_text = self._generate_two_stage(question, top_chunks)
             else:
                 answer_text = self._generate(messages)
@@ -193,6 +197,7 @@ class RAGPipeline:
             timing=timing, prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
             confidence_tier=confidence_tier,
             tier_top1=tier_top1, tier_top3=tier_top3,
+            fact_check_debug=fact_check_debug,
         )
         timing["format_ms"] = round((time.time() - t0) * 1000)
 
@@ -597,6 +602,19 @@ class RAGPipeline:
             facts=facts, question=question,
         )}]
         return llm.chat(rewrite_msg, temperature=0.3)
+
+
+    def _generate_with_fallback(self, messages: list[dict]) -> str:
+        """Route to DeepSeek fallback for high-risk questions."""
+        assert self._fallback_llm is not None
+        self._llm_used = self._fallback_llm.model
+        print(f"[LLM] 高风险题分流到 {self._fallback_llm.model}")
+        try:
+            return self._fallback_llm.chat(messages, temperature=0.15)
+        except LLMError:
+            print("[LLM] 回退模型也失败，使用主模型")
+            self._llm_used = self._llm.model
+            return self._llm.chat(messages, temperature=0.15)
 
     def _format_response(
         self,
