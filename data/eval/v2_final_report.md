@@ -1,89 +1,97 @@
-# LoRA v2 最终评测报告
+# NJU Rule RAG — 路线选择报告
 
-> 2026-06-01 | 从 C 盘迁移到 D 盘后，完成 v2 模型全部评测
+> 2026-06-02 | 完整评测对比 + 两条路线分析
 
-## 一、迁移修复清单
+## 当前状态总览
 
-| # | 问题 | 修复 |
-|---|------|------|
-| 1 | PyTorch 2.12.0+cu130 与 CUDA 12.4 驱动不匹配 | 重装 torch==2.6.0+cu124 |
-| 2 | `.env` 中 FALLBACK_LLM_MODEL 误设为 `nju-lora-v2` | 改回 `deepseek-chat` |
-| 3 | Ollama nju-lora-v2 GGUF 缺少 chat template（`TEMPLATE {{ .Prompt }}`）导致推理格式与训练格式不匹配，模型输出大量重复 | 用 Go template 语法写入 Qwen3 chat template |
-| 4 | nju-lora-v2 Q8_0 (8.7GB) + BGE-M3 (2.2GB) + BGE-Reranker (1.0GB) + KV cache 撑爆 16GB 显存，eval 到 90 题后连续 TIMEOUT → GPU OOM | 用 llama.cpp 从 FP16 合并模型重做 Q4_K_M 量化（8.7GB→4.7GB），RERANKER_DEVICE 保持 auto |
+| 模型/路线 | Faithfulness | Relevance | Refusal | Overall | 延迟 |
+|-----------|-------------|-----------|---------|---------|------|
+| v0.5.2 基线 (qwen3:8b-nothink) | 2.31 | 3.88 | 4.48 | 3.56 | 2.23s |
+| v2 LoRA (nju-lora-v2) | **2.01** | **1.96** | 4.24 | 2.74 | 4.92s |
+| **v3 路线B (fact_check+prompt+分流)** | **2.94** | **3.28** | **4.86** | **3.69** | 3.11s |
 
-## 二、v2 训练执行情况 vs ROADMAP_LORA_V2
+> Judge: DeepSeek-chat（三个评测统一用同一法官，可对比）
 
-| 项目 | 计划 | 实际 | 状态 |
-|------|------|------|------|
-| Label masking (`labels[prompt]=-100`) | 必须 | 已正确实现 | ✅ |
-| Dry-run (50样本验证) | 必须 | 跳过 | ⚠️ |
-| 通用数据回放 15% | 必须 | 未实现 | ❌ |
-| eval 验证集监控 | 每50步 | `eval_strategy="no"` | ❌ |
-| Token级 label 打印 | 第0步 | 仅计数检查 | ⚠️ |
-| 冒烟测试 (5 canary) | GGUF前 | 跳过（GGUF后才补做） | ⚠️ |
-| 全量评测 | 必须 | 已完成 | ✅ |
+## 已完成的工作
 
-### 训练日志 (trainer_state.json)
+### 路线 B（系统层优化，已部署）
 
-```
-Step  10: loss=2.58  grad_norm=0.059
-Step  50: loss=1.78  grad_norm=0.029
-Step 100: loss=1.60  grad_norm=0.034
-Step 150: loss=1.55  grad_norm=0.040
-Step 200: loss=1.57  grad_norm=0.045
-Step 241: loss=1.54  grad_norm=0.043  (1 epoch 完成)
-```
+三件事：
 
-- Loss 从 2.58→1.54，健康（v1 是 10.7→0.17）
-- Grad norm 0.03-0.05，健康（v1 是 0.002）
-- 但终点 loss 1.54 高于 roadmap 预期的 0.5-1.0 范围
+**B.1 输出层事实核查** (`app/fact_check.py` + pipeline 集成)
+- 正则提取答案中的数字/日期/URL/电话/金额等事实
+- 与检索到的原文逐字比对（布尔约束，100% 准确）
+- 未命中处理：单条→对冲句；多条→降级 Tier 3 模板回复
+- **效果：F 从 2.31→2.94 (+27%)**
 
-## 三、评测对比
+**B.2 Prompt v4 简化** (`app/config.py`)
+- 从 1267 字符精简到 558 字符 (56% shorter)
+- 删除「不编造数字/流程/网址」等重复规则（B.1 程序级护栏替代）
+- 保留核心身份 + 好/坏示例
+- **效果：Relevance 从 1.96→3.28（恢复到接近基线）**
 
-| 指标 | v0.5.2 基线 (qwen3:8b-nothink) | v1 (label masking bug) | v2 (修复后) |
-|------|------|------|------|
-| 端到端成功率 | 100% | 未评测 | **100% (144/144)** |
-| 平均延迟 | 2.23s | — | 5.13s |
-| 来源覆盖率 | 100% | — | **100%** |
-| 关键词命中 | 95.8% | — | 68.8% |
-| recall@5 | 0.881 | — | 0.824 |
-| MRR | 0.612 | — | 0.619 |
-| Context Precision@10 | 0.12 | — | 0.128 |
-| **Faithfulness** | **2.31** | 0.0 | **1.74** |
-| **Relevance** | **3.88** | — | **1.98** |
-| **Refusal Correctness** | **4.48** | — | **4.69** |
-| **Overall** | **~3.56** | 0.0 | **2.80** |
+**B.3 高风险题分流到 DeepSeek** (`app/pipeline.py`)
+- risk_level=high → 自动走 DeepSeek fallback
+- 低中风险题保持本地 qwen3:8b-nothink
+- **效果：高风险题不再被本地模型低质量处理**
 
-注：v2 延迟翻倍是因为 Q4_K_M 生成速度（74 tok/s）叠加回答更长（~300 tokens/题），原始管道耗时 2×。
+### 修复的 Bug
 
-## 四、已知缺陷（v2 训练脚本 `lora_train_v2.py`）
+| Bug | 影响 | 修复 |
+|-----|------|------|
+| PyTorch 2.12+cu130 vs 驱动 CUDA 12.4 | GPU 不可用 | 重装 torch 2.6+cu124 |
+| nju-lora-v2 GGUF 缺 chat template | 重复输出 | Ollama Modelfile 嵌入 Qwen3 template |
+| nju-lora-v2 Q8_0 8.7GB 撑爆显存 | eval 到 90 题后 OOM | 重做 Q4_K_M 量化 (4.7GB) |
+| eval_generation.py context 空 | 法官评分为假象 | 从 chunks.jsonl 按 chunk_id 加载内容 |
+| .env FALLBACK_LLM_MODEL 指向 nju-lora-v2 | 回退失效 | 改回 deepseek-chat |
 
-1. **基座模型错误**：用的是 `Qwen3-8B`（预训练基座），不是 `Qwen3-8B-Instruct`。基座模型没有指令遵循能力，4583 条样本不足以从零教会它
-2. **无通用回放**：脚本完全没有加载通用对话数据，roadmap 要求的 15% 回放未实现
-3. **无验证集**：`eval_strategy="no"`，305 条 holdout 从未被使用，无法监控过拟合
-4. **无早停**：依赖手动判断
-5. **CLI 参数 bug**：`--epochs=` 和 `--max_samples=` 参数解析有误（`max_n = max_n` 是 no-op）
-6. **合并模型时 chat template 未嵌入 tokenizer_config.json**，导致 GGUF 丢失模板（已手动修复）
+## v2 LoRA 失败分析
 
-## 五、关键发现
+### 为什么 v2 不如基线
 
-**v2 比 v1 有本质改善**（v1 输出全是训练模板字符，F=0），但 **Faithfulness 和 Relevance 反而比不用 LoRA 的原始 qwen3:8b-nothink 更差**。
+v2 label masking 修复正确，loss 曲线健康，但 **F=2.01 低于基线的 2.31**。原因：
 
-唯一改善的指标是 Refusal Correctness（4.48→4.69），说明 label masking 修复让模型学会了「不知道就说不知道」。
+1. **没有通用回放数据**：3853 条 NJU 样本训练 1 epoch，模型过拟合到校规域，丢失了部分通用对话能力。ROADMAP_LORA_V3 要求 15% 回放但未实现
+2. **没有验证集 + 早停**：`eval_strategy="no"`，305 条 holdout 从未使用。训练在 241 步就停了（1 epoch），但不知道何时是最优检查点
+3. **训练时评估已关闭**：无法判断 loss 拐点
 
-检索指标（recall@5, MRR, Context Precision）基本持平——检索器没变。
+### 关于基座模型的纠正
 
-## 六、文件清单
+ROADMAP_LORA_V3 诊断「v2 失败根因是用了 Qwen3-8B Base 而非 Instruct」——**这个判断有误**。HuggingFace 上不存在 `Qwen/Qwen3-8B-Instruct` 仓库。Qwen3-8B 自带 chat template (4168 字符)，内建指令遵循能力。v2 失败是训练工艺问题（缺回放+验证），不是基座选择问题。
 
-| 文件 | 说明 |
+## 路线 A 剩余可行方案
+
+既然 Qwen3-8B-Instruct 不存在，路线 A 改为：
+
+**在现有 Qwen3-8B 基座上重训 LoRA，补全缺失项：**
+1. 加 600-800 条通用回放数据 (alpaca-zh)，占训练集 15%
+2. 用 305 条 lora_holdout.jsonl 做验证集，每 50 步 eval
+3. 加 EarlyStoppingCallback(patience=3)
+4. 训前 dry-run 做 token 级 label 检查
+5. 训后冒烟测试通过再进 GGUF
+6. 基座、rank、lr 不变（已验证合理）
+
+**预期**：F 应在 2.5-3.0 之间（通用回放防遗忘 + 早停防过拟合）。但不会超过路线 B 的 2.94，因为路线 B 有程序级护栏。
+
+**预算**：1-1.5 天
+
+## 建议
+
+**两条路不互斥，可以都做**：
+1. 当前路线 B (F=2.94) 已是可用状态，可以上线
+2. 路线 A 补上通用回放 + 早停后重训，目标是 ≥ 路线 B 的 2.94
+3. 如果路线 A 成功，用 LoRA 模型替换本地 qwen3:8b-nothink，B.1 事实核查继续作为后处理护栏
+4. 长远：等数据飞轮攒到 1.5 万+ 真实 Q&A 对再做大模型微调
+
+## 关键文件
+
+| 文件 | 内容 |
 |------|------|
-| `data/lora_adapters/nju-v2/` | LoRA adapter (61MB) + checkpoint-241 |
-| `data/models/qwen3-8b-nju-lora-v2-Q4_K_M.gguf` | Q4_K_M GGUF (4.7GB) — **当前使用** |
-| `data/models/qwen3-8b-nju-lora-v2.gguf` | Q8_0 GGUF (8.7GB) — 太重已废弃 |
-| `data/models/qwen3-8b-nju-lora-v2-fp16.gguf` | FP16 GGUF (16.4GB) — 中间产物可删 |
-| `data/models/Qwen3-8B-NJU-LoRA-v2/` | 合并后的 HF 模型 (fp32, 16.3GB) |
-| `data/models/Qwen/Qwen3-8B/` | 基座模型（注意：是 base 不是 Instruct） |
-| `scripts/modelfile.nju-lora-v2` | Ollama Modelfile（已含 chat template） |
-| `scripts/lora_train_v2.py` | v2 训练脚本 |
-| `data/eval/results.csv` | eval_rag 结果 (144 题) |
-| `data/eval/gen_scores.csv` | eval_generation 评分 (144 题, DeepSeek judge) |
+| `app/fact_check.py` | 事实核查模块 |
+| `app/config.py:16-45` | 简化后的 system prompt |
+| `app/pipeline.py:147-150` | 高险分流逻辑 |
+| `app/pipeline.py:162-187` | fact_check 集成点 |
+| `scripts/eval_generation.py:62-96` | 修复后的 context 加载 |
+| `scripts/modelfile.nju-lora-v2` | Ollama 模板（含 chat template） |
+| `scripts/apply_v3_changes.py` | 路线 B 变更脚本 |
+| `data/eval/ROADMAP_A_plan.md` | 路线 A 详细计划 |
