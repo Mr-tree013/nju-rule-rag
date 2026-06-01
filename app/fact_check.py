@@ -98,17 +98,17 @@ def verify_facts(
         val = f["value"]
         ftype = f["type"]
 
-        if ftype in ("url", "email", "phone"):
-            # Exact match required
+        if ftype == "url":
+            verified = val in corpus or _normalize_url(val) in corpus
+        elif ftype == "phone":
+            verified = val in corpus or _normalize_phone(val) in corpus
+        elif ftype == "email":
             verified = val in corpus
         elif ftype == "amount":
-            # Exact match (数字+单位必须逐字出现)
-            verified = val in corpus
+            verified = val in corpus or _normalize_amount(val) in corpus
         elif ftype == "date":
-            # Allow ±1 char tolerance for full-width half-width differences
             verified = val in corpus or _fuzzy_date_match(val, corpus)
         elif ftype == "proper_noun":
-            # Must appear as a substring
             verified = val in corpus
         else:
             verified = val in corpus
@@ -116,6 +116,30 @@ def verify_facts(
         results.append({**f, "verified": verified})
 
     return results
+
+
+def _normalize_amount(val: str) -> str:
+    """Normalize amounts: strip spaces, convert full-width digits, handle decimal zero."""
+    s = val.translate(str.maketrans("０１２３４５６７８９", "0123456789"))
+    s = s.replace(" ", "").replace("　", "")
+    # "2.0学分" and "2学分" should match
+    s = re.sub(r'(?<=\d)\.0+(?=[^0-9])', '', s)
+    # "2.00元" and "2元"
+    s = re.sub(r'(?<=\d)\.00(?=[^0-9])', '', s)
+    return s
+
+
+def _normalize_phone(val: str) -> str:
+    """Strip all non-digits, handle common separators."""
+    return re.sub(r'[^\d]', '', val)
+
+
+def _normalize_url(val: str) -> str:
+    """Strip trailing slash, www prefix, normalize protocol."""
+    s = val.lower()
+    s = re.sub(r'^https?://(?:www\.)?', '', s)
+    s = s.rstrip('/')
+    return s
 
 
 def _fuzzy_date_match(date_str: str, corpus: str) -> bool:
