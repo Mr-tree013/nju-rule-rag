@@ -1,144 +1,144 @@
 id,question,faithfulness,relevance,refusal_correctness,notes
-E001,大一上学期可以选多少学分的课？,5,5,5,准确拒答，无编造
-E002,选课的时候课程冲突了怎么办？,2,3,5,部分信息无依据，但未拒答
-E003,通识课和专业课可以一起选吗？,3,4,5,部分信息无依据，但回答相关
-E004,选课系统一般什么时候开放？,2,3,5,部分信息无依据，但未编造
-E005,错过了选课时间还能补选吗？,3,5,5,部分细节超出资料范围
-E006,怎么退掉已经选上的课？,3,5,5,部分细节无依据，但回答相关且未拒答
-E007,缓考要怎么申请？,5,5,5,回答准确且相关，拒答处理得当
-E008,什么情况下可以申请缓考？,3,5,5,部分细节超出资料范围
-E009,缓考成绩和正常考试一样吗？,2,3,5,部分信息无依据，但未编造
-E010,缓考没通过还能补考吗？,3,5,5,部分细节超出资料范围
-E011,突发疾病来不及提前申请缓考怎么办？,3,5,5,部分细节超出资料范围
-E012,补考一般安排什么时候？,1,2,1,无资料支持，内容编造
-E013,补考要自己报名吗？流程是什么？,2,3,3,缺乏依据，部分信息推测
-E014,补考通过的课程成绩怎么显示？,3,4,5,部分细节超出资料范围
-E015,哪些课程不能补考？,1,3,1,严重编造，无依据，未拒答
-E016,补考和重修哪个更划算？,3,5,5,忠实度一般，但相关性与拒答正确性良好
-E018,重修要不要额外交钱？,3,5,5,部分细节无依据，但回答相关且未拒答
-E019,重修的成绩会覆盖原来的吗？,1,3,5,无资料支持，回答不忠实
-E020,同一门课可以重修几次？,1,3,1,严重不忠实，编造规则内容
-E021,重修会影响保研吗？,3,4,5,部分信息无依据，但整体相关
-E022,绩点是怎么算的？,2,2,3,未依据资料，部分信息错误
-E023,成绩出错了应该找谁？,3,5,5,无资料但给出合理建议
-E024,挂科了能不能消掉记录？,3,4,5,部分细节超出资料范围
-E025,缓考和补考的成绩有效期是多久？,3,3,3,部分信息超出资料范围
-E026,出国交换期间的课程成绩怎么转换？,1,3,1,严重不忠实，编造转换规则
-E027,转专业需要什么条件？,2,3,3,部分信息无依据，需补充政策依据
-E028,休学之后怎么复学？,3,4,5,部分细节超出资料范围
-E029,退学之后还有机会回来吗？,3,4,3,部分信息未在资料中明确支持
-E030,学籍状态异常了怎么办？,3,4,5,部分细节超出资料范围
-E031,保留学籍和休学有什么区别？,2,4,5,部分信息无依据，但问题未拒答
-E032,辅修有什么要求？怎么申请？,2,3,3,部分信息无依据，需核实
-E033,辅修的课和主修冲突了怎么处理？,3,4,5,部分信息无依据，但整体相关
-E034,辅修完有什么证书吗？,3,5,5,部分细节超出资料范围
-E035,辅修挂科了怎么办？,2,3,5,部分信息无依据，但未编造
-E036,交换期间修的课回来怎么认定？,4,5,5,回答准确且完整
-E037,去境外交流一学期学分能转回来吗？,3,4,5,部分信息无依据，但整体相关
-E038,交换申请需要什么材料？,1,2,1,无资料支持，内容编造
-E039,课程认定失败了怎么办？,2,3,5,无资料，回答基于常识
-E040,全球科考项目怎么报名？,1,2,3,无资料支持，但回答相关
-E041,学业预警是什么意思？收到预警严重吗？,2,4,5,部分信息无依据，但问题回答完整
-E042,收到学业预警后该怎么处理？,3,5,5,部分细节无依据，但回答相关且未拒答
-E043,学业预警会记入档案吗？,3,5,5,部分信息超出资料范围
-E044,累计几次学业预警会被劝退？,5,3,5,忠实资料，但未直接回答次数
-E045,家里有事可以请长假吗？,3,5,5,部分细节超出资料范围
-E046,考试作弊会被开除吗？,2,4,5,部分信息无依据，但未拒答
-E047,找人代考被发现了会怎样？,3,5,5,部分信息未在资料中体现
-E048,考试作弊的处分决定会在档案里留多久？,5,5,5,回答准确且符合规范
-E049,被学校处分了可以申诉吗？,3,4,5,部分细节超出资料范围
-E050,毕业需要多少学分？,2,4,5,部分信息无依据，但问题已回答
-E051,毕业论文没过能毕业吗？,2,4,5,部分信息无依据，但整体相关
-E052,学位证和毕业证有什么区别？,3,5,5,内容基本准确，但无参考资料支持
-E053,我这种情况还能正常毕业吗？,3,5,5,回答相关但部分细节无依据
-E054,退学之后还能重新高考再入学吗？,3,4,3,部分信息超出资料范围
-E055,挂科太多会被退学吗？,3,4,5,部分细节超出资料范围
-E101,仙林校区宿舍是几人间？,2,4,5,部分信息无依据，但问题已回答
-E102,校园网怎么收费？超出时长怎么办？,1,2,1,无资料支持，内容多为编造
-E103,学生证买火车票有优惠吗？,5,3,5,未提供资料，正确拒答
-E104,校园卡丢了在哪里补办？,2,4,5,部分信息无依据，但回答相关
-E105,军训一般什么时候？多长时间？,1,3,5,无资料支持，内容多为编造
-E106,校医院在哪里？怎么就诊？,1,3,5,无资料支持，内容编造
-E107,大学生医保怎么用？,2,3,5,部分信息无依据，需核实
-E108,鼓楼校区怎么去？有哪些交通方式？,2,3,5,部分信息无依据，但未拒答
-E109,学生邮箱怎么开通和使用？,5,5,5,回答准确且符合拒答规范
-E110,新生入学需要预防哪些诈骗？,3,4,5,部分信息无依据，但回答相关
-E111,助学贷款怎么申请？,2,3,3,部分信息无依据，回答不完整
-E112,宿舍可以自己买洗衣机吗？,3,5,5,部分细节无依据，但整体相关
-E113,鼓楼校区宿舍条件怎么样？,2,4,5,部分信息无依据，但整体相关
-E114,新生报到需要带什么？,1,3,5,无资料支持，回答不忠实
-E115,校园卡和电话卡有什么区别？,3,5,5,内容基本准确，但无资料支撑
-E201,南大录取时投档比例是多少？,5,5,5,回答准确且符合规范
-E202,南大录取专业有级差吗？,5,5,5,回答准确且符合规范
-E203,大一新生报到需要带什么材料？,5,3,5,无资料，正确拒答，但可补充常见材料
-E204,二次选拔是怎么回事？怎么报名？,3,3,5,部分信息未明确来源
-E205,被调剂到不喜欢的专业有什么办法？,3,4,5,部分信息无依据，但回答相关
-E206,转专业需要什么条件？,2,3,3,部分信息无依据，需补充政策依据
-E207,转专业一般什么时候可以申请？,1,2,1,无资料支持，内容编造
-E208,大一结束能转专业吗？,3,4,5,部分信息无依据，但回答相关
-E209,转专业失败了还能再申请吗？,3,3,5,未提供资料，正确拒答
-E210,保研需要什么条件？,3,4,3,部分信息超出资料范围
-E211,挂过科还能保研吗？,3,4,5,未引用资料但回答合理
-E212,保研名额怎么分配的？,3,4,5,部分信息无依据，但整体相关
-E213,国家奖学金要什么条件才能申请？,2,3,5,部分信息无依据，需核实
-E214,家里经济困难能申请什么补助？,1,3,1,无资料支持，内容编造
-E215,学费减免怎么申请？需要什么条件？,3,4,5,部分细节超出资料范围
-E216,突然遇到困难能申请临时补助吗？,2,3,5,缺乏依据，但未拒答
-E217,奖学金和助学金可以同时拿吗？,3,5,5,部分细节超出资料范围
-E218,南大有哪些好玩的社团？,3,4,5,部分信息无依据，但整体相关
-E219,百团大战是什么？什么时候有？,1,1,1,严重不忠实，与问题无关
-E220,学生会和社团有什么区别？,3,5,5,部分细节无资料支持
-E221,一个人可以加几个社团？,3,5,5,部分信息超出资料范围
-E222,境外交换项目怎么申请？,1,3,1,无资料支持，内容多为编造
-E223,出国交流需要考托福还是雅思？,3,4,5,部分信息无依据，但整体相关
-E224,交换期间交的学费怎么算？,3,4,5,部分信息无依据，但整体相关
-E225,有哪些公派留学的机会？,5,3,5,未提供资料，正确拒答
-E226,统一身份认证怎么激活？,2,3,5,部分信息无依据，需核实
-E227,在校外怎么访问校内资源？,5,5,5,回答准确且符合规范
-E228,校园网PJSD密码是什么？怎么设？,2,3,5,部分信息无依据，需补充密码设置流程
-E229,南大提供哪些免费的正版软件？,3,4,5,部分信息未在资料中体现
-E230,南大APP和企业微信有什么用？,3,5,5,部分细节无依据，但整体相关
-E231,大学体测都测什么项目？,3,5,5,部分细节超出资料范围
-E232,体育课可以选哪些项目？,5,3,5,无资料支持，拒答合理
-E233,体测不及格影响毕业吗？,1,3,5,无资料支持，回答不忠实
-E234,南大考研有哪些专业方向？,5,3,5,未提供资料，拒答合理
-E235,考研和保研有什么区别？,3,5,5,部分细节超出资料范围
-E236,本校学生考本校研究生有什么优势？,2,3,3,无资料支持，部分信息推测
-E237,仙林校区附近有什么好逛的地方？,3,4,5,部分信息无依据，但整体相关
-E238,鼓楼校区出门有什么生活设施？,3,4,5,部分信息无依据，但整体相关
-E239,苏州校区偏僻吗？周边有什么？,3,4,5,部分信息无依据，但整体相关
-E240,秋季学期什么时候开学？,2,3,3,部分信息无依据，回答不完整
-E241,寒假和暑假各放多久？,3,4,5,部分信息未依据资料
-E242,小学期是什么？必须上吗？,3,4,5,部分信息无依据，但整体相关
-E243,保卫处电话多少？,3,5,5,部分信息无依据，但回答相关
-E244,校园里遇到紧急情况打什么电话？,3,5,5,部分信息无依据，但回答相关
-E245,进实验室要注意哪些安全规范？,2,4,5,部分信息无依据，但回答相关
-E246,浦口校区和仙林校区有什么区别？,3,4,5,部分信息无依据，但回答相关
-E247,国家奖学金需要什么条件才能申请？,1,3,5,无资料，回答不忠实
-E248,国家励志奖学金和国家助学金可以同时拿吗？,3,5,5,部分细节超出资料范围
-E249,家里突然有困难可以申请临时困难补助吗？怎么申请？,3,4,5,部分细节超出资料范围
-E250,勤工助学一般做什么工作？工资多少？,3,4,5,部分信息无依据，但整体相关
-E251,学费减免适用于哪些学生？,3,5,5,部分信息无依据，但问题已回答
-E252,考试作弊被抓会有什么后果？,3,4,3,部分细节超出资料范围
-E253,被学校处分了可以申诉吗？怎么申诉？,3,5,5,部分细节超出资料范围
-E254,日常行为考评不及格会影响毕业吗？,2,3,5,部分信息无依据，但未涉及高风险
-E255,辅修需要多修多少学分？,3,3,5,未明确学分要求，建议查阅培养方案
-E256,辅修专业和主修专业课程冲突怎么办？,1,3,1,无资料却编造流程，严重不忠实
-E257,仙林校区报警电话是多少？,1,5,5,无资料支持，但回答准确
-E258,宿舍里可以做饭吗？学校对消防安全有什么规定？,3,5,5,部分细节无依据，但整体相关
-E259,收到可疑的学费催缴短信怎么辨别是不是诈骗？,3,5,5,部分细节超出资料范围
-E260,体测每个项目具体怎么评分？,5,3,5,忠实拒答，但未提供具体评分标准
-E261,体育课缺课几次会挂科？,2,4,5,部分信息无依据，但回答相关
-E262,保健体育课是什么？什么情况可以申请？,3,4,5,部分信息未引用资料
-E263,南大每年招多少研究生？推免和统考各占多少？,2,3,3,部分信息无依据，需核实
-E264,考研报名需要什么条件？专科毕业可以考吗？,2,3,3,部分信息无依据，建议核实
-E265,转专业需要满足什么条件？绩点有要求吗？,2,2,3,无资料支持，内容多为推测
-E266,学科准入是什么意思？和转专业是一回事吗？,3,5,5,无资料但合理解释
-E267,仙林校区有哪些食堂？哪个好吃？,5,3,5,未提供食堂信息，建议联系相关部门
-E268,校车班车怎么坐？要钱吗？,1,3,5,无资料支持，内容多为编造
-E269,宿舍晚上几点关门？可以带校外人员进宿舍吗？,3,4,5,部分信息未依据资料，但拒答处理正确
-E270,学生证丢了怎么补办？,3,3,5,未提供资料，正确拒答
-E271,通识课要修多少学分？有哪些类别？,1,3,5,无资料支持，内容多为编造
-E272,跨专业选课有什么限制？,2,3,5,部分信息无依据，需核实
-E273,学分绩怎么算的？多少分算优秀？,3,4,5,部分细节超出资料范围
-E274,学分制收费是什么意思？一学分多少钱？,5,5,5,准确拒答，无编造
+E001,大一上学期可以选多少学分的课？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E002,选课的时候课程冲突了怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E003,通识课和专业课可以一起选吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E004,选课系统一般什么时候开放？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E005,错过了选课时间还能补选吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E006,怎么退掉已经选上的课？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E007,缓考要怎么申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E008,什么情况下可以申请缓考？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E009,缓考成绩和正常考试一样吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E010,缓考没通过还能补考吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E011,突发疾病来不及提前申请缓考怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E012,补考一般安排什么时候？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E013,补考要自己报名吗？流程是什么？,0,0,0,judge error: Extra data: line 1 column 85 (char 84)
+E014,补考通过的课程成绩怎么显示？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E015,哪些课程不能补考？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E016,补考和重修哪个更划算？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E018,重修要不要额外交钱？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E019,重修的成绩会覆盖原来的吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E020,同一门课可以重修几次？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E021,重修会影响保研吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E022,绩点是怎么算的？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E023,成绩出错了应该找谁？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E024,挂科了能不能消掉记录？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E025,缓考和补考的成绩有效期是多久？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E026,出国交换期间的课程成绩怎么转换？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E027,转专业需要什么条件？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E028,休学之后怎么复学？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E029,退学之后还有机会回来吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E030,学籍状态异常了怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E031,保留学籍和休学有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E032,辅修有什么要求？怎么申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E033,辅修的课和主修冲突了怎么处理？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E034,辅修完有什么证书吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E035,辅修挂科了怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E036,交换期间修的课回来怎么认定？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E037,去境外交流一学期学分能转回来吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E038,交换申请需要什么材料？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E039,课程认定失败了怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E040,全球科考项目怎么报名？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E041,学业预警是什么意思？收到预警严重吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E042,收到学业预警后该怎么处理？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E043,学业预警会记入档案吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E044,累计几次学业预警会被劝退？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E045,家里有事可以请长假吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E046,考试作弊会被开除吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E047,找人代考被发现了会怎样？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E048,考试作弊的处分决定会在档案里留多久？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E049,被学校处分了可以申诉吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E050,毕业需要多少学分？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E051,毕业论文没过能毕业吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E052,学位证和毕业证有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E053,我这种情况还能正常毕业吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E054,退学之后还能重新高考再入学吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E055,挂科太多会被退学吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E101,仙林校区宿舍是几人间？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E102,校园网怎么收费？超出时长怎么办？,0,0,0,judge error: Extra data: line 1 column 87 (char 86)
+E103,学生证买火车票有优惠吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E104,校园卡丢了在哪里补办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E105,军训一般什么时候？多长时间？,0,0,0,judge error: Extra data: line 1 column 87 (char 86)
+E106,校医院在哪里？怎么就诊？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E107,大学生医保怎么用？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E108,鼓楼校区怎么去？有哪些交通方式？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E109,学生邮箱怎么开通和使用？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E110,新生入学需要预防哪些诈骗？,0,0,0,judge error: Extra data: line 1 column 92 (char 91)
+E111,助学贷款怎么申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E112,宿舍可以自己买洗衣机吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E113,鼓楼校区宿舍条件怎么样？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E114,新生报到需要带什么？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E115,校园卡和电话卡有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E201,南大录取时投档比例是多少？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E202,南大录取专业有级差吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E203,大一新生报到需要带什么材料？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E204,二次选拔是怎么回事？怎么报名？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E205,被调剂到不喜欢的专业有什么办法？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E206,转专业需要什么条件？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E207,转专业一般什么时候可以申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E208,大一结束能转专业吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E209,转专业失败了还能再申请吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E210,保研需要什么条件？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E211,挂过科还能保研吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E212,保研名额怎么分配的？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E213,国家奖学金要什么条件才能申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E214,家里经济困难能申请什么补助？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E215,学费减免怎么申请？需要什么条件？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E216,突然遇到困难能申请临时补助吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E217,奖学金和助学金可以同时拿吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E218,南大有哪些好玩的社团？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E219,百团大战是什么？什么时候有？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E220,学生会和社团有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E221,一个人可以加几个社团？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E222,境外交换项目怎么申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E223,出国交流需要考托福还是雅思？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E224,交换期间交的学费怎么算？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E225,有哪些公派留学的机会？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E226,统一身份认证怎么激活？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E227,在校外怎么访问校内资源？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E228,校园网PJSD密码是什么？怎么设？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E229,南大提供哪些免费的正版软件？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E230,南大APP和企业微信有什么用？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E231,大学体测都测什么项目？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E232,体育课可以选哪些项目？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E233,体测不及格影响毕业吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E234,南大考研有哪些专业方向？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E235,考研和保研有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E236,本校学生考本校研究生有什么优势？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E237,仙林校区附近有什么好逛的地方？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E238,鼓楼校区出门有什么生活设施？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E239,苏州校区偏僻吗？周边有什么？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E240,秋季学期什么时候开学？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E241,寒假和暑假各放多久？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E242,小学期是什么？必须上吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E243,保卫处电话多少？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E244,校园里遇到紧急情况打什么电话？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E245,进实验室要注意哪些安全规范？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E246,浦口校区和仙林校区有什么区别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E247,国家奖学金需要什么条件才能申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E248,国家励志奖学金和国家助学金可以同时拿吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E249,家里突然有困难可以申请临时困难补助吗？怎么申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E250,勤工助学一般做什么工作？工资多少？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E251,学费减免适用于哪些学生？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E252,考试作弊被抓会有什么后果？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E253,被学校处分了可以申诉吗？怎么申诉？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E254,日常行为考评不及格会影响毕业吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E255,辅修需要多修多少学分？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E256,辅修专业和主修专业课程冲突怎么办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E257,仙林校区报警电话是多少？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E258,宿舍里可以做饭吗？学校对消防安全有什么规定？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E259,收到可疑的学费催缴短信怎么辨别是不是诈骗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E260,体测每个项目具体怎么评分？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E261,体育课缺课几次会挂科？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E262,保健体育课是什么？什么情况可以申请？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E263,南大每年招多少研究生？推免和统考各占多少？,0,0,0,judge error: Extra data: line 1 column 90 (char 89)
+E264,考研报名需要什么条件？专科毕业可以考吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E265,转专业需要满足什么条件？绩点有要求吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E266,学科准入是什么意思？和转专业是一回事吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E267,仙林校区有哪些食堂？哪个好吃？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E268,校车班车怎么坐？要钱吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E269,宿舍晚上几点关门？可以带校外人员进宿舍吗？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E270,学生证丢了怎么补办？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E271,通识课要修多少学分？有哪些类别？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E272,跨专业选课有什么限制？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E273,学分绩怎么算的？多少分算优秀？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
+E274,学分制收费是什么意思？一学分多少钱？,0,0,0,judge error: Expecting value: line 1 column 1 (char 0)
