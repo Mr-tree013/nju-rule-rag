@@ -77,15 +77,20 @@ class LLMClient:
         """Use Ollama /api/generate with raw prompt for fast inference."""
         import re
 
+        # Find last user message to append /no_think (Qwen3-native instruction)
+        last_user_idx = max(i for i, m in enumerate(messages) if m["role"] == "user")
+
         # Build raw prompt in Qwen chat format
         parts = []
-        for msg in messages:
+        for i, msg in enumerate(messages):
             role = msg["role"]
             content = msg["content"]
             if role == "system":
                 parts.append(f"<|im_start|>system\n{content}<|im_end|>")
             elif role == "user":
-                parts.append(f"<|im_start|>user\n{content}<|im_end|>")
+                # /no_think on last user message: tells Qwen3 to skip thinking
+                suffix = " /no_think" if i == last_user_idx else ""
+                parts.append(f"<|im_start|>user\n{content}{suffix}<|im_end|>")
             elif role == "assistant":
                 parts.append(f"<|im_start|>assistant\n{content}<|im_end|>")
         parts.append("<|im_start|>assistant\n")
