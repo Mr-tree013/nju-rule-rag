@@ -127,7 +127,23 @@ class RAGPipeline:
         confidence_tier, tier_top1, tier_top3 = self._decide_confidence_tier(top_chunks)
         timing["build_prompt_ms"] = round((time.time() - t0) * 1000)
 
-        # 7. Tier 3: direct referral, skip LLM
+        # 7. Check persistent query cache (chunk-signature key)
+        chunk_ids = [c.get("chunk_id", "") for c in top_chunks]
+        from app.cache import query_cache
+        cached = query_cache.get(question, chunk_ids)
+        if cached:
+            result = self._format_response(
+                question, cached["answer"], classification, top_chunks,
+                t_start, retrieval_count, [],
+                timing=timing, prompt_tokens=0, prompt_chunks=len(top_chunks),
+                confidence_tier=cached.get("tier", confidence_tier),
+                tier_top1=tier_top1, tier_top3=tier_top3,
+                cached=True,
+            )
+            timing["format_ms"] = round((time.time() - t_start) * 1000)
+            return result
+
+        # 8. Tier 3: direct referral, skip LLM
         if confidence_tier == "3":
             result = self._tier3_response(
                 question, classification, t_start, retrieval_count, timing,
@@ -135,7 +151,7 @@ class RAGPipeline:
             )
             return result
 
-        # 8. Build prompt (inject hedge instructions for Tier 2)
+        # 9. Build prompt (inject hedge instructions for Tier 2)
         messages, prompt_tokens, prompt_chunks = self._build_prompt(
             question, top_chunks, classification.level, classification.is_process,
             confidence_tier=confidence_tier,
@@ -201,7 +217,12 @@ class RAGPipeline:
         )
         timing["format_ms"] = round((time.time() - t0) * 1000)
 
-        # 9. Periodic GPU cache cleanup
+        # 12. Write to persistent cache (skip Tier 3 — may become answerable later)
+        if confidence_tier in ("1", "2") and not result.get("cached"):
+            from app.cache import query_cache
+            query_cache.set(question, chunk_ids, answer_text, confidence_tier)
+
+        # 13. Periodic GPU cache cleanup
         self._maybe_free_gpu_cache()
 
         return result
@@ -643,6 +664,7 @@ class RAGPipeline:
         tier_top1: float = 0.0,
         tier_top3: float = 0.0,
         fact_check_debug: dict | None = None,
+        cached: bool = False,
     ) -> dict[str, Any]:
         # Length cap
         limit = self._settings.max_answer_length
@@ -678,6 +700,7 @@ class RAGPipeline:
             "tier_top1_score": round(tier_top1, 4),
             "tier_top3_avg": round(tier_top3, 4),
             "fact_check": fact_check_debug or {},
+            "cached": cached,
         }
 
         return {

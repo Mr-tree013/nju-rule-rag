@@ -5,9 +5,11 @@ Provides GET /health and POST /ask endpoints.
 """
 
 import logging
+import os
 import re
 import sys
 import time
+import uuid
 
 import asyncio
 import json
@@ -16,8 +18,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+from pathlib import Path
 
-from app.cache import qa_cache
+from app.cache import qa_cache, query_cache
 from app.config import APP_TITLE, create_settings
 from app.errors import EmptyQuestionError
 from app.pipeline import answer_question, preload_pipeline
@@ -51,6 +54,29 @@ class AskRequest(BaseModel):
     question: str
 
 
+def _log_request(request_id: str, question: str, result: dict):
+    """Log ask request details for feedback correlation."""
+    log_dir = Path("data/requests")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "request_id": request_id,
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "question": question,
+        "answer": result.get("answer", "")[:500],
+        "risk_level": result.get("risk_level", ""),
+        "tier": result.get("debug", {}).get("confidence_tier", "?"),
+        "fact_check": result.get("debug", {}).get("fact_check", {}),
+        "sources": result.get("sources", []),
+        "latency": result.get("debug", {}).get("latency", 0),
+    }
+    fname = time.strftime("%Y%m") + ".jsonl"
+    try:
+        with open(log_dir / fname, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 @app.post("/ask")
 def ask(req: AskRequest):
     if not req.question or not req.question.strip():
@@ -60,14 +86,20 @@ def ask(req: AskRequest):
     cached = qa_cache.get(req.question)
     if cached is not None:
         cached["debug"]["cached"] = True
+        if "request_id" not in cached:
+            cached["request_id"] = str(uuid.uuid4())[:8]
         return cached
 
+    request_id = str(uuid.uuid4())[:8]
     try:
         result = answer_question(req.question)
+        result["request_id"] = request_id
         result["debug"]["cached"] = False
         qa_cache.set(req.question, result)
+        _log_request(request_id, req.question, result)
         logger.info(
-            "question=%s risk=%s confirm=%s sources=%d latency=%.2f",
+            "request_id=%s question=%s risk=%s confirm=%s sources=%d latency=%.2f",
+            request_id,
             req.question[:50],
             result["risk_level"],
             result["need_human_confirm"],
@@ -77,13 +109,15 @@ def ask(req: AskRequest):
         return result
     except Exception as exc:
         logger.error(
-            "question=%s error=%s",
+            "request_id=%s question=%s error=%s",
+            request_id,
             req.question[:50],
             str(exc)[:200],
         )
         return JSONResponse(
             status_code=500,
             content={
+                "request_id": request_id,
                 "question": req.question,
                 "answer": "系统暂时不可用，请稍后再试。",
                 "risk_level": "unknown",
@@ -184,6 +218,7 @@ class FeedbackRequest(BaseModel):
     rating: str = ""  # "up" or "down"
     comment: str = ""
     sources: str = ""  # JSON-serialized source chunks (for training pair construction)
+    request_id: str = ""  # correlate with ask log for full debug info
 
 
 @app.post("/feedback")
@@ -193,10 +228,29 @@ def feedback(req: FeedbackRequest):
     Each down-vote with sources can be converted to a training pair:
       query=question, positive=gold_source (from manual label), negative=retrieved
     """
-    import os
     today = time.strftime("%Y-%m-%d")
     log_dir = Path("data/feedback")
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    # If request_id provided, try to load the original request debug info
+    request_debug = None
+    if req.request_id:
+        req_log_dir = Path("data/requests")
+        fname = time.strftime("%Y%m") + ".jsonl"
+        req_log = req_log_dir / fname
+        if req_log.exists():
+            try:
+                with open(req_log, encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            r = json.loads(line)
+                            if r.get("request_id") == req.request_id:
+                                request_debug = r
+                                break
+                        except json.JSONDecodeError:
+                            continue
+            except Exception:
+                pass
 
     entry = {
         "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -204,7 +258,10 @@ def feedback(req: FeedbackRequest):
         "answer": req.answer[:500],
         "rating": req.rating,
         "comment": req.comment,
-        "sources": req.sources,  # JSON string of retrieved chunks
+        "sources": req.sources,
+        "request_id": req.request_id,
+        "tier": request_debug.get("tier", "") if request_debug else "",
+        "fact_check": request_debug.get("fact_check", {}) if request_debug else {},
     }
     log_path = log_dir / f"{today}.jsonl"
     try:
@@ -218,7 +275,10 @@ def feedback(req: FeedbackRequest):
 
 @app.get("/cache/stats")
 def cache_stats():
-    return qa_cache.stats()
+    return {
+        "memory": qa_cache.stats(),
+        "persistent": query_cache.stats(),
+    }
 
 
 @app.get("/health")
@@ -254,7 +314,7 @@ def health_deep():
     from app.health import get_deep_health
     from app.config import create_settings
     s = create_settings()
-    from app.cache import qa_cache
+    from app.cache import qa_cache, query_cache
     result = get_deep_health(s.project_root, cache_stats_fn=qa_cache.stats)
     # Phase 1.1 — expose fact check status
     result["fact_check_enabled"] = s.enable_fact_check
