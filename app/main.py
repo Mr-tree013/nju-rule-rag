@@ -190,19 +190,35 @@ async def ask_stream(req: AskRequest):
 
     async def generate():
         try:
+            # Phase 1: retrieval done, starting generation
+            yield f"data: {json.dumps({'phase': 'generating', 'chunks': retrieval_count})}\n\n"
+
             full_answer = ""
             for token in pipeline._generate_stream(messages):
                 full_answer += token
                 yield f"data: {json.dumps({'token': token})}\n\n"
-                await asyncio.sleep(0)  # yield to event loop
+                await asyncio.sleep(0)
 
-            # Format final response with sources
+            # Phase 2: fact_check post-processing
+            answer_text = full_answer
+            fact_check_debug = {}
+            if pipeline._settings.enable_fact_check:
+                from app.fact_check import apply_fact_check
+                fc_result = apply_fact_check(full_answer, top_chunks, confidence_tier)
+                answer_text = fc_result["answer"]
+                fact_check_debug = fc_result["debug"]
+                if answer_text != full_answer:
+                    yield f"data: {json.dumps({'phase': 'corrected', 'answer': answer_text, 'tier': fc_result.get('tier', confidence_tier)})}\n\n"
+                    confidence_tier = fc_result.get("tier", confidence_tier)
+
+            # Phase 3: format final response
             result = pipeline._format_response(
-                req.question, full_answer, classification, top_chunks,
+                req.question, answer_text, classification, top_chunks,
                 t_start, retrieval_count,
                 prompt_tokens=prompt_tokens, prompt_chunks=prompt_chunks,
                 confidence_tier=confidence_tier,
                 tier_top1=tier_top1, tier_top3=tier_top3,
+                fact_check_debug=fact_check_debug,
             )
             yield f"data: {json.dumps({'done': True, 'result': result})}\n\n"
         except Exception as exc:
