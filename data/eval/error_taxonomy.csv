@@ -1,36 +1,45 @@
 id,question,F,category,detail
-E007,缓考要怎么申请？,1,F2,Fabrication/ignore-retrieval: 回答编造了表格、教师签字等流程，与资料严重不符。
-E020,同一门课可以重修几次？,2,F2,Fabrication/ignore-retrieval: 编造了总评低于80分可重修一次，资料未提
-E021,重修会影响保研吗？,2,F2,Short (37 chars) or heavy hedging (0x) — fallback
-E030,学籍状态异常了怎么办？,1,F2,Short (36 chars) or heavy hedging (0x) — fallback
-E032,辅修有什么要求？怎么申请？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，未基于参考资料
-E035,辅修挂科了怎么办？,1,F2,Short (34 chars) or heavy hedging (0x) — fallback
+E005,错过了选课时间还能补选吗？,2,F2,Short (82 chars) or heavy hedging (1x) — fallback
+E009,缓考成绩和正常考试一样吗？,2,F2,Fabrication/ignore-retrieval: 编造了推免乘0.9，资料未提及
+E010,缓考没通过还能补考吗？,2,F2,Fabrication/ignore-retrieval: 编造补考规则，资料未提及缓考未过可补考
+E016,补考和重修哪个更划算？,2,F2,Fabrication/ignore-retrieval: 编造了500元/学分费用，未完整对比两者优劣
+E020,同一门课可以重修几次？,2,F2,Short (79 chars) or heavy hedging (0x) — fallback
+E021,重修会影响保研吗？,2,F2,Fabrication/ignore-retrieval: 回答编造体育课影响保研，资料未提及
+E022,绩点是怎么算的？,2,F2,Fabrication/ignore-retrieval: 编造换算公式，遗漏核心公式，回答不准确
+E024,挂科了能不能消掉记录？,2,F2,Fabrication/ignore-retrieval: 编造了缓考补考内容，未完全依据资料
+E025,缓考和补考的成绩有效期是多久？,2,F5,Notes don't match failure patterns: 回答未基于资料，且未回答有效期核心问题
+E026,出国交换期间的课程成绩怎么转换？,1,F2,Fabrication/ignore-retrieval: 编造转换规则和时限，遗漏备案等关键信息
+E030,学籍状态异常了怎么办？,2,F2,Fabrication/ignore-retrieval: 回答编造了具体步骤，与资料无关
+E032,辅修有什么要求？怎么申请？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与资料无关
+E035,辅修挂科了怎么办？,2,F2,Fabrication/ignore-retrieval: 回答编造了具体流程和材料，资料未提及
 E038,交换申请需要什么材料？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造流程
-E039,课程认定失败了怎么办？,1,F2,Short (55 chars) or heavy hedging (1x) — fallback
-E043,学业预警会记入档案吗？,1,F2,Short (38 chars) or heavy hedging (0x) — fallback
-E102,校园网怎么收费？超出时长怎么办？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离资料，编造收费信息
-E105,军训一般什么时候？多长时间？,2,F2,Fabrication/ignore-retrieval: 资料有军训时间信息，回答却说没写，不忠实且不完整。
+E039,课程认定失败了怎么办？,1,F4,Wrong refusal — sources had info: 资料有明确规则，回答却称没写，完全错误拒答
+E051,毕业论文没过能毕业吗？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造内容
+E102,校园网怎么收费？超出时长怎么办？,2,F2,Fabrication/ignore-retrieval: 回答编造了免费时长和充值方式，且未完整回答收费问题
+E105,军训一般什么时候？多长时间？,1,F2,Fabrication/ignore-retrieval: 编造具体日期，未引用资料
+E106,校医院在哪里？怎么就诊？,2,F2,Fabrication/ignore-retrieval: 回答编造了校医院位置和就诊时间，且未完整回答就诊流程
 E107,大学生医保怎么用？,2,F2,Fabrication/ignore-retrieval: 回答编造了转诊定点医院等细节，资料未提及
-E111,助学贷款怎么申请？,1,F2,Short (61 chars) or heavy hedging (0x) — fallback
-E113,鼓楼校区宿舍条件怎么样？,2,F2,Fabrication/ignore-retrieval: 编造独立卫浴、热水器、智能充电桩等
-E114,新生报到需要带什么？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与参考资料无关
-E202,南大录取专业有级差吗？,1,F2,Short (22 chars) or heavy hedging (1x) — fallback
-E203,大一新生报到需要带什么材料？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与参考资料无关
-E204,二次选拔是怎么回事？怎么报名？,1,F4,Tier 3 refusal but sources had info: 资料充分却错误拒答，完全未使用
-E211,挂过科还能保研吗？,1,F2,Short (39 chars) or heavy hedging (0x) — fallback
-E216,突然遇到困难能申请临时补助吗？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与资料无关
-E220,学生会和社团有什么区别？,2,F2,Fabrication/ignore-retrieval: 部分内容超出资料范围，如社团活动不计入综评
-E228,校园网PJSD密码是什么？怎么设？,1,F2,Fabrication/ignore-retrieval: 回答编造了设置方法，未依据资料
-E233,体测不及格影响毕业吗？,2,F2,Missing key info: 遗漏关键毕业要求，回答不准确
-E234,南大考研有哪些专业方向？,1,F4,Wrong refusal — sources had info: 资料明确有专业方向，回答错误拒答
-E238,鼓楼校区出门有什么生活设施？,1,F2,Fabrication/ignore-retrieval: 回答编造了资料未提及的设施，且未回应问题核心
-E239,苏州校区偏僻吗？周边有什么？,1,F2,Fabrication/ignore-retrieval: 回答编造地址和描述，未基于参考资料。
-E241,寒假和暑假各放多久？,2,F2,Short (69 chars) or heavy hedging (2x) — fallback
-E242,小学期是什么？必须上吗？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造内容
-E247,国家奖学金需要什么条件才能申请？,1,F2,Fabrication/ignore-retrieval: 回答不完整且未基于资料
-E252,考试作弊被抓会有什么后果？,1,F2,Fabrication/ignore-retrieval: 编造一般作弊记过处分，超出资料范围
-E255,辅修需要多修多少学分？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，资料未提及具体学分
-E256,辅修专业和主修专业课程冲突怎么办？,1,F2,Short (49 chars) or heavy hedging (0x) — fallback
-E259,收到可疑的学费催缴短信怎么辨别是不是诈骗？,1,F2,Short (45 chars) or heavy hedging (0x) — fallback
-E262,保健体育课是什么？什么情况可以申请？,1,F2,Fabrication/ignore-retrieval: 回答完全编造流程，与资料无关
-E273,学分绩怎么算的？多少分算优秀？,2,F2,Fabrication/ignore-retrieval: 编造优秀标准，遗漏平均学分绩公式
+E111,助学贷款怎么申请？,1,F2,Short (78 chars) or heavy hedging (1x) — fallback
+E202,南大录取专业有级差吗？,1,F4,Wrong refusal — sources had info: 资料明确写无级差，回答错误且拒答不当
+E210,保研需要什么条件？,2,F2,Fabrication/ignore-retrieval: 回答未引用资料，内容空泛且不完整
+E211,挂过科还能保研吗？,1,F5,Notes don't match failure patterns: 回答未基于资料，且未回答核心问题
+E213,国家奖学金要什么条件才能申请？,1,F2,Fabrication/ignore-retrieval: 回答编造成绩排名等条件，与资料不符
+E214,家里经济困难能申请什么补助？,2,F2,Fabrication/ignore-retrieval: 回答部分超出资料范围，遗漏勤工助学和绿色通道
+E220,学生会和社团有什么区别？,2,F2,Fabrication/ignore-retrieval: 多处编造（如综合素质评价），遗漏关键区别
+E226,统一身份认证怎么激活？,2,F2,Fabrication/ignore-retrieval: 回答编造了激活方式，未基于资料
+E228,校园网PJSD密码是什么？怎么设？,1,F2,Fabrication/ignore-retrieval: 编造设置方式，遗漏密码来源信息
+E233,体测不及格影响毕业吗？,2,F2,Fabrication/ignore-retrieval: 编造预审核细节，遗漏关键50分要求
+E234,南大考研有哪些专业方向？,1,F5,Notes don't match failure patterns: 回答未基于资料，且答非所问
+E236,本校学生考本校研究生有什么优势？,2,F2,Fabrication/ignore-retrieval: 回答编造加分项，未基于资料
+E238,鼓楼校区出门有什么生活设施？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造地铁等信息
+E239,苏州校区偏僻吗？周边有什么？,1,F2,Fabrication/ignore-retrieval: 回答编造地址、环境，且未引用资料
+E241,寒假和暑假各放多久？,2,F2,Short (86 chars) or heavy hedging (0x) — fallback
+E242,小学期是什么？必须上吗？,1,F2,Fabrication/ignore-retrieval: 回答编造内容，未基于参考资料
+E247,国家奖学金需要什么条件才能申请？,1,F2,Fabrication/ignore-retrieval: 编造成绩排名、贫困证明等，遗漏基本条件
+E254,日常行为考评不及格会影响毕业吗？,2,F2,Fabrication/ignore-retrieval: 回答编造了7次考评及评优要求，资料未提及
+E256,辅修专业和主修专业课程冲突怎么办？,1,F2,Fabrication/ignore-retrieval: 回答编造了操作流程，未基于参考资料
+E259,收到可疑的学费催缴短信怎么辨别是不是诈骗？,2,F2,Fabrication/ignore-retrieval: 回答未引用资料，部分内容超出范围
+E264,考研报名需要什么条件？专科毕业可以考吗？,2,F2,Fabrication/ignore-retrieval: 回答编造条件，遗漏关键信息，未引用资料
+E268,校车班车怎么坐？要钱吗？,1,F2,Fabrication/ignore-retrieval: 编造免费信息，遗漏收费说明
+E272,跨专业选课有什么限制？,2,F2,Fabrication/ignore-retrieval: 编造每学期最多6门，实际为4门；遗漏抽签优先级等关键点
+E273,学分绩怎么算的？多少分算优秀？,2,F2,Fabrication/ignore-retrieval: 编造了除以20的算法，且优秀标准无依据
