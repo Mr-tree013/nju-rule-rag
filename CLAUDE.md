@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.6.3. 147 source documents → 3248 chunks. 145 eval questions. Avg latency **4.21s** (Qwen3-8B prefill floor; Windows = WSL2, OS无关). Fact-check pipeline (NER entity verification) added. LoRA v3 fine-tuning + Ollama GGUF deployment. Confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost). Faithfulness 2.99/5. Known issues: context precision 0.12 limiting faithfulness; 3.5s latency target not reachable without model/infra change. Full latency optimization history: `docs/latency_final_report.md`.
+**Current status**: v0.6.4. 147 source documents → 3248 chunks. 145 eval questions. Avg latency **1.76s** (switched to Ollama native /api/generate — bypasses OpenAI API overhead). Fact-check pipeline (NER entity verification) added. LoRA v3 fine-tuning + Ollama GGUF deployment. Confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost). Faithfulness 2.99/5. Known issues: context precision 0.12 limiting faithfulness; 3.5s latency target not reachable without model/infra change. Full latency optimization history: `docs/latency_final_report.md`.
 
 ## Commands
 
