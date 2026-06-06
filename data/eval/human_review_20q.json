@@ -6,9 +6,9 @@
     "judge_F": "1",
     "judge_R": "2",
     "topic": "资助政策",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "3",
+    "human_R": "5",
+    "human_notes": "奖励政策"
   },
   {
     "id": "E039",
@@ -17,9 +17,9 @@
     "judge_F": "1",
     "judge_R": "1",
     "topic": "交换/课程认定",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "1",
+    "human_notes": "课程认定"
   },
   {
     "id": "E007",
@@ -28,9 +28,9 @@
     "judge_F": "1",
     "judge_R": "2",
     "topic": "缓考",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "缓考"
   },
   {
     "id": "E260",
@@ -39,9 +39,9 @@
     "judge_F": "1",
     "judge_R": "1",
     "topic": "体育",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "体育"
   },
   {
     "id": "E202",
@@ -50,9 +50,9 @@
     "judge_F": "1",
     "judge_R": "1",
     "topic": "录取入学",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "1",
+    "human_R": "1",
+    "human_notes": "无效问题，极差不知道在说什么"
   },
   {
     "id": "E105",
@@ -61,9 +61,9 @@
     "judge_F": "2",
     "judge_R": "3",
     "topic": "校园生活",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "校园生活"
   },
   {
     "id": "E025",
@@ -72,9 +72,9 @@
     "judge_F": "2",
     "judge_R": "2",
     "topic": "成绩/绩点",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "3",
+    "human_R": "3",
+    "human_notes": "成绩"
   },
   {
     "id": "E024",
@@ -83,9 +83,9 @@
     "judge_F": "2",
     "judge_R": "3",
     "topic": "成绩/绩点",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "3",
+    "human_R": "5",
+    "human_notes": "成绩"
   },
   {
     "id": "E230",
@@ -94,9 +94,9 @@
     "judge_F": "2",
     "judge_R": "3",
     "topic": "信息化工具",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "信息化工具"
   },
   {
     "id": "E020",
@@ -105,9 +105,9 @@
     "judge_F": "2",
     "judge_R": "3",
     "topic": "重修",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "重修"
   },
   {
     "id": "E262",
@@ -116,9 +116,9 @@
     "judge_F": "3",
     "judge_R": "3",
     "topic": "体育",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "3",
+    "human_R": "3",
+    "human_notes": "体育"
   },
   {
     "id": "E229",
@@ -127,9 +127,9 @@
     "judge_F": "3",
     "judge_R": "3",
     "topic": "信息化工具",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "体育"
   },
   {
     "id": "E017",
@@ -138,9 +138,9 @@
     "judge_F": "3",
     "judge_R": "4",
     "topic": "重修",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "重修"
   },
   {
     "id": "E238",
@@ -149,9 +149,9 @@
     "judge_F": "3",
     "judge_R": "4",
     "topic": "周边生活",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "周边生活"
   },
   {
     "id": "E211",
@@ -160,9 +160,9 @@
     "judge_F": "3",
     "judge_R": "2",
     "topic": "保研推免",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "3",
+    "human_R": "1",
+    "human_notes": "挂科不能保研"
   },
   {
     "id": "E008",
@@ -171,9 +171,9 @@
     "judge_F": "4",
     "judge_R": "4",
     "topic": "缓考",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "4",
+    "human_R": "4",
+    "human_notes": "缓考，回答不全"
   },
   {
     "id": "E004",
@@ -182,9 +182,9 @@
     "judge_F": "4",
     "judge_R": "4",
     "topic": "选课",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "4",
+    "human_R": "4",
+    "human_notes": "选课"
   },
   {
     "id": "E012",
@@ -193,9 +193,9 @@
     "judge_F": "4",
     "judge_R": "5",
     "topic": "补考",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "补考"
   },
   {
     "id": "E041",
@@ -204,9 +204,9 @@
     "judge_F": "4",
     "judge_R": "5",
     "topic": "学业预警",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "学业预警"
   },
   {
     "id": "E044",
@@ -215,9 +215,9 @@
     "judge_F": "4",
     "judge_R": "4",
     "topic": "学业预警",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "4",
+    "human_R": "3",
+    "human_notes": "学业预警，有多余内容"
   },
   {
     "id": "E261",
@@ -226,9 +226,9 @@
     "judge_F": "5",
     "judge_R": "5",
     "topic": "体育",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "体育"
   },
   {
     "id": "E006",
@@ -237,9 +237,9 @@
     "judge_F": "5",
     "judge_R": "5",
     "topic": "选课",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "选课"
   },
   {
     "id": "E101",
@@ -248,9 +248,9 @@
     "judge_F": "5",
     "judge_R": "5",
     "topic": "校园生活",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "校园生活"
   },
   {
     "id": "E221",
@@ -259,9 +259,9 @@
     "judge_F": "5",
     "judge_R": "5",
     "topic": "学生社团",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "学生社团"
   },
   {
     "id": "E219",
@@ -270,8 +270,8 @@
     "judge_F": "5",
     "judge_R": "5",
     "topic": "学生社团",
-    "human_F": "",
-    "human_R": "",
-    "human_notes": ""
+    "human_F": "5",
+    "human_R": "5",
+    "human_notes": "学生社团"
   }
 ]
