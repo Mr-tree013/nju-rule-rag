@@ -5,19 +5,18 @@
 #   ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink
 #
 # Qwen3 defaults to thinking mode (outputs <think> blocks before answering).
-# This custom template always appends /no_think to user messages, which tells
-# the model to skip reasoning and answer directly.  For RAG use cases we want
-# fast, direct answers — not chain-of-thought reasoning.
+# This custom template appends /no_think to user messages, which tells
+# the model to skip reasoning and answer directly.
 #
-# Parameters hardened per ROADMAP_DEPLOY v0.5.0:
-#   num_ctx 8192    — cap context window to avoid OOM / pathologically slow prefill
-#   num_predict 400 — hard output token cap (~250 中文字 + 余量)
-#   temperature 0.35 — consistent with pipeline (was 0.6, which caused verbosity)
+# Parameters:
+#   num_ctx 8192    — cap context window to avoid OOM
+#   num_predict 280 — output token cap
+#   temperature 0.35
 
 FROM qwen3:8b
 
 PARAMETER num_ctx 8192
-PARAMETER num_predict 400
+PARAMETER num_predict 250
 PARAMETER temperature 0.35
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.1

@@ -78,6 +78,7 @@ class LLMClient:
             "messages": messages,
             "temperature": temperature,
             "stream": True,
+            "max_tokens": 320,
             "stop": ["\n\n来源", "\n来源:", "<|im_end|>", "###", "补充说明"],
         }
         resp = requests.post(

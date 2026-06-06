@@ -509,11 +509,12 @@ class RAGPipeline:
         """Call primary LLM; fall back to secondary on failure."""
         try:
             result = self._llm.chat(messages, temperature=0.15)
+            if not result or len(result) == 0:
+                result = self._llm.chat(messages, temperature=0.3)
             self._llm_used = self._llm.model
             return result
         except LLMError:
             if self._fallback_llm:
-                print("[LLM] 主模型失败，切换到回退模型")
                 self._llm_used = self._fallback_llm.model
                 return self._fallback_llm.chat(messages, temperature=0.15)
             raise
@@ -565,13 +566,13 @@ class RAGPipeline:
 问题：{question}
 关键事实："""
 
-    REWRITE_PROMPT = """你是南大学长。用学弟学妹能听懂的大白话，**只用下面列出的事实信息**来回答问题。
+    REWRITE_PROMPT = """你是南大学长，帮同学整理校规信息。用直接好懂的话回答，**只用下面列出的事实信息**。
 
 铁律：
 1. 只能使用下面"事实信息"里明确写出的内容。不在事实列表里的数字、日期、金额、网址绝对不写。
 2. 如果事实信息不完整（比如只有流程没有具体时间），诚实说"具体时间看教务系统通知"——不要自己填一个。
-3. 语气自然，像学长跟学弟学妹聊天。200字以内。
-4. 禁止"根据规定""资料显示"等官话。
+3. 语气自然直接，不用官话。200字以内。
+4. 禁止"根据规定""资料显示""学弟学妹"等套话。
 
 事实信息：
 {facts}

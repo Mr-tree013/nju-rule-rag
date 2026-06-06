@@ -1,4 +1,4 @@
-FROM /home/mrtree/nju-rule-rag/nju-rule-rag/data/models/qwen3-8b-nju-lora-v2-Q4_K_M.gguf
+FROM /home/mrtree/nju-rule-rag/nju-rule-rag/data/models/nju-lora-v3-Q4_K_M.gguf
 
 TEMPLATE """{{- if .Messages }}
 {{- range .Messages }}
