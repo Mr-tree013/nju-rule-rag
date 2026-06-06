@@ -459,7 +459,7 @@ class RAGPipeline:
 
         messages: list[dict[str, str]] = [
             {"role": "system", "content": system},
-            {"role": "user", "content": f"【参考资料片段】\n\n{context}\n\n【用户问题】\n{question}"},
+            {"role": "user", "content": f"以下是你可以使用的唯一信息来源，不要使用你自己的知识：\n\n【参考资料】\n{context}\n\n【问题】\n{question}"},
         ]
         if is_process:
             messages.append(

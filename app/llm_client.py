@@ -83,8 +83,7 @@ class LLMClient:
             role = msg["role"]
             content = msg["content"]
             if role == "system":
-                # Append anti-thinking hint to suppress <think> blocks
-                parts.append(f"<|im_start|>system\n{content}\n\n请直接回答，不要思考。<|im_end|>")
+                parts.append(f"<|im_start|>system\n{content}<|im_end|>")
             elif role == "user":
                 parts.append(f"<|im_start|>user\n{content}<|im_end|>")
             elif role == "assistant":
@@ -109,8 +108,8 @@ class LLMClient:
         data = resp.json()
         content = data.get("response", "")
 
-        # Strip empty <think></think> prefix (model may still output it)
-        content = re.sub(r'^<think>\s*</think>\s*\n*', '', content)
+        # Strip <think> blocks (Qwen3 may output them with /api/generate)
+        content = re.sub(r'^<think>\s*</think>\s*', '', content).strip()
         return content
 
     def chat_stream(self, messages: list[dict], temperature: float = 0.2,
