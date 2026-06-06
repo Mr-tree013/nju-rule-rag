@@ -510,7 +510,17 @@ class RAGPipeline:
         try:
             result = self._llm.chat(messages, temperature=0.15)
             if not result or len(result) == 0:
+                q = ""
+                if messages:
+                    last = messages[-1]["content"]
+                    import re
+                    m = re.search(r'【用户问题】\s*(.+?)$', last, re.MULTILINE)
+                    if m:
+                        q = m.group(1)[:80]
+                print(f"[retry] empty_response query={q}")
                 result = self._llm.chat(messages, temperature=0.3)
+                if not result or len(result) == 0:
+                    print(f"[retry] STILL_EMPTY after retry query={q}")
             self._llm_used = self._llm.model
             return result
         except LLMError:

@@ -13,14 +13,11 @@ from pathlib import Path
 
 # ── System prompt (long enough to warrant its own constant) ──────────
 
-DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语气帮他们搞懂校规和办事流程。
+DEFAULT_SYSTEM_PROMPT = """你是南大的学长，帮同学搞清楚校规和办事流程。用直接好懂的方式说清楚，不要复读政策条文。
 
-核心原则：
-- 只说参考资料里明确了的内容，不确定的就自然地说「具体XX我看到的资料里没写，建议问教务员」
-- 不跨问题混淆：问补考不套缓考流程，问本科生不套研究生规则
-- 资料完全没答案时，直接说不知道——靠谱的学长不怕说不知道，怕瞎说
+按参考资料回答，语气自然，说完就停。不确定的地方如实说「这个具体我看到的资料里没写，建议问教务员」。
 
-风格：自然聊天语气，150-300字，不要官话。
+风格：100-200字，不用官话。
 
 好的回答：
 问 劳育需要多少时长
@@ -30,15 +27,14 @@ DEFAULT_SYSTEM_PROMPT = """你是南大学长，用和学弟学妹聊天的语�
 答 考试前在教服平台 jw.nju.edu.cn 提交申请附证明材料，等辅导员和教务处审核。具体截止时间看教务系统通知。
 
 问 补考没过怎么办
-答 只能重修，补考就一次机会。没过的话这门课得跟着下一届重新上。重修要不要交钱、成绩怎么记——这个我看到的资料里没统一规定，你开学时问下教务员就清楚了。
+答 只能重修，补考就一次机会。没过的话这门课得跟着下一届重新上。重修要不要交钱、成绩怎么记——这个我看到的资料里没统一规定，开学时问下教务员就清楚了。
 
 问 宿舍晚上几点关门（当资料里没写时）
-答 这个具体时间我看到的资料里没写。不同宿舍楼可能不一样，你问下宿管阿姨或者看宿舍楼下的通知最准确。
+答 这个具体时间我看到的资料里没写。不同宿舍楼可能不一样，问下宿管阿姨或者看宿舍楼下的通知最准确。
 
-答得不好（避免）：
-- 编具体数字、日期、网址、金额
-- 资料没写却用常识硬填
-- 跨问题套用不同规则的流程"""
+回答要求：
+- 直接答问题，不要复述题目或加客套话
+- 内容控制在 200 字以内（拒答模板除外）"""
 
 
 # ── Settings ─────────────────────────────────────────────────────────
@@ -171,25 +167,16 @@ class Settings:
         "周边生活": ["nju-guide-018", "nju-guide-038", "nju-guide-062"],
     })
 
-    # ── Confidence tiering (v0.6.0 three-tier answer strategy) ────
-
-    confidence_tier1_top1: float = 0.85   # Tier 1: top-1 orig_score threshold (further raised)
-    confidence_tier1_top3: float = 0.70   # Tier 1: top-3 avg orig_score threshold
-    confidence_tier3_top1: float = 0.35   # Tier 3: top-1 orig_score below this → direct referral (lowered)
+    # ── Confidence tiering (v0.6.3 data-driven tier thresholds) ──
+    # Tier 1: answer confidently (top1 >= 0.70, top3_avg >= 0.55)
+    # Tier 2: mild hedge, answer based on available sources
+    # Tier 3: direct referral, skip LLM (top1 < 0.25)
+    confidence_tier1_top1: float = 0.70
+    confidence_tier1_top3: float = 0.55
+    confidence_tier3_top1: float = 0.25
     tier2_hedge_prompt: str = (
         "\n\n"
-        "重要: 这次给你的参考资料覆盖不全, 只有部分相关信息。下面的规则比平时更严格:\n\n"
-        "你必须做到:\n"
-        "- 只说你确定资料里写了的内容, 哪怕信息很少\n"
-        "- 任何具体数字(金额/日期/学分/次数/比例) -- 资料里没写的, 一个都不准自己填\n"
-        "- 任何流程步骤 -- 资料里没写的, 不要凭常识补\n"
-        "- 在不确定的句子末尾, 自然地加一句 具体XX我看到的资料里没写, 建议问教务员\n\n"
-        "禁止做的事:\n"
-        "- 禁止因为资料不全就编造看似合理的信息来补全答案\n"
-        "- 禁止把不同 topic 的规则混在一起(如把缓考规则套到补考上)\n"
-        "- 禁止编造网址/系统名/部门名称\n\n"
-        "核心原则: 宁可回答短但真实, 也不要长但有假。资料不全时你的价值不是"
-        "编出完整答案, 而是诚实告诉学弟学妹哪些是确定的、哪些需要他们自己去确认。"
+        "回答时以参考资料为准，不编造资料中没有的具体信息。"
     )
 
     # ── Prompt budget (token-aware context trimming) ────────────
@@ -305,9 +292,9 @@ def create_settings() -> Settings:
         llm_reranker_candidate_preview_chars=_int("LLM_RERANKER_CANDIDATE_PREVIEW_CHARS", 200),
         llm_reranker_temperature=_float("LLM_RERANKER_TEMPERATURE", 0.0),
         llm_reranker_fallback_to_ce=os.getenv("LLM_RERANKER_FALLBACK_TO_CE", "true").lower() in ("true", "1", "yes"),
-        confidence_tier1_top1=_float("CONFIDENCE_TIER1_TOP1", 0.85),
-        confidence_tier1_top3=_float("CONFIDENCE_TIER1_TOP3", 0.70),
-        confidence_tier3_top1=_float("CONFIDENCE_TIER3_TOP1", 0.35),
+        confidence_tier1_top1=_float("CONFIDENCE_TIER1_TOP1", 0.70),
+        confidence_tier1_top3=_float("CONFIDENCE_TIER1_TOP3", 0.55),
+        confidence_tier3_top1=_float("CONFIDENCE_TIER3_TOP1", 0.25),
         prompt_token_budget=_int("PROMPT_TOKEN_BUDGET", 4096),
         max_chunk_tokens=_int("MAX_CHUNK_TOKENS", 320),
         max_chunks_in_prompt=_int("MAX_CHUNKS_IN_PROMPT", 6),
