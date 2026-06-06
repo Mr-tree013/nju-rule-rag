@@ -335,6 +335,17 @@ class HybridRetriever:
     # the final hybrid score to reduce false-top-1 hits.
     _QA_SOURCE_PENALTY: float = 0.85  # reduced from 0.65 — BGE-M3 semantic matching is strong enough
 
+    # Compilation documents (student handbook, regulations dump) contain many
+    # regulations but pollute retrieval for specific queries.  Penalize them
+    # so individual regulation documents can surface.
+    _COMPILATION_SOURCES = frozenset({
+        'nju-jw-044',  # 本科生管理规章制度_2025版 (738 chunks)
+        'nju-jw-047',  # 本科生管理规章制度2014版 (425 chunks)
+        'nju-jw-048',  # 本科生管理规章制度过渡版 (764 chunks)
+        'nju-jw-025',  # 南京大学学生手册 (111 chunks)
+        'nju-jw-046',  # 辅修相关_学生手册节选 (221 chunks)
+    })
+
     _source_boost: dict[str, float] = {}
 
     def __init__(
@@ -457,8 +468,23 @@ class HybridRetriever:
                 final *= boost
             scored.append((cid, final, data))
 
+        # Per-source limit + penalty for compilation docs to prevent them
+        # from monopolizing top slots over individual regulation documents.
+        max_per_source = 3
+        source_counts: dict[str, int] = {}
+        deduped: list[tuple[str, float, dict]] = []
         scored.sort(key=lambda x: x[1], reverse=True)
-        scored = scored[:k]
+        for cid, final_score, data in scored:
+            src_id = data["chunk"].get("source_id", "")
+            # Penalize compilation docs: 0.3x score multiplier
+            if src_id in self._COMPILATION_SOURCES:
+                final_score *= 0.3
+            if source_counts.get(src_id, 0) < max_per_source:
+                deduped.append((cid, final_score, data))
+                source_counts[src_id] = source_counts.get(src_id, 0) + 1
+        # Re-sort after penalties applied
+        deduped.sort(key=lambda x: x[1], reverse=True)
+        scored = deduped[:k]
 
         results: list[dict] = []
         for cid, final_score, data in scored:

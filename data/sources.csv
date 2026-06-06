@@ -1,4 +1,4 @@
-source_id,title,filename,url,source_type,department,scope,priority,need_login,update_frequency,note,topics,crawl_url,crawl_method,crawl_frequency,last_crawled_at,content_hash,stale_after_days,auth_required,chunk_strategy
+﻿source_id,title,filename,url,source_type,department,scope,priority,need_login,update_frequency,note,topics,crawl_url,crawl_method,crawl_frequency,last_crawled_at,content_hash,stale_after_days,auth_required,chunk_strategy
 nju-jw-001,南京大学普通全日制本科生学籍管理细则,南京大学-学籍管理细则.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件 南字发〔2025〕153号,本科生院,,manual,on_demand,2026-05-30,d75c9ca798bb3c59,365,false,article
 nju-jw-002,南京大学全日制本科生考试管理办法,南京大学-考试管理办法.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,dbd0d45a0fa34c79,365,false,article
 nju-jw-003,南京大学本科课程成绩管理规定,南京大学-成绩管理规定.md,,markdown,本科生院,本科生,1,no,semester,现行校级正式文件,本科生院,,manual,on_demand,2026-05-30,797a32341a85dd0f,365,false,article
@@ -23,7 +23,7 @@ nju-jw-021,南京大学公共教室调度管理办法,南京大学-公共教室�
 nju-jw-022,南京大学期中期末考试监考注意事项,南京大学-期中期末考试监考注意事项.md,https://jw.nju.edu.cn/9b/8d/c24683a629645/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2024年发布,本科生院,https://jw.nju.edu.cn/9b/8d/c24683a629645/page.htm,manual,on_demand,2026-05-30,3f7013fd0c0a1e3d,365,false,article
 nju-jw-023,期末考试期间复习考试的提醒和建议,期末考试期间复习考试的提醒和建议.md,https://jw.nju.edu.cn/9f/3e/c24683a761662/page.htm,html,本科生院,本科生,3,no,semester,已下载HTML转MD，2025年发布,本科生院,https://jw.nju.edu.cn/9f/3e/c24683a761662/page.htm,manual,on_demand,2026-05-30,400e191fe69789d1,365,false,article
 nju-jw-024,南京大学本科生院办事流程,南京大学本科生院-办事流程.md,,markdown,本科生院,本科生,4,no,irregular,办事指南,本科生院,,manual,on_demand,2026-05-30,c16c12f3cfa55c37,365,false,article
-nju-jw-025,南京大学学生手册（2021版）,南京大学学生手册.md,,markdown,南京大学,本科生,5,no,yearly,2021版 含16项规章制度 部分条款已有2025版更新,南京大学,,manual,on_demand,2026-05-30,86f4ee770d04fd1e,365,false,heading
+nju-jw-025,南京大学学生手册（2021版）,南京大学学生手册.md,,markdown,南京大学,本科生,6,no,yearly,2021版 含16项规章制度 部分条款已有2025版更新,南京大学,,manual,on_demand,2026-05-30,86f4ee770d04fd1e,365,false,heading
 nju-jw-026,南京大学本科生院机构设置,南京大学本科生院-机构设置.md,,markdown,本科生院,全部,5,no,irregular,信息参考,本科生院,,manual,on_demand,2026-05-30,5b51b1461622ebec,365,false,article
 nju-jw-027,南京大学本科毕业论文（设计）撰写规范、存档实施细则,南京大学-本科毕业论文撰写规范与存档实施细则.md,,pdf,本科生院,本科生,2,no,irregular,DOC格式待解析，毕业论文撰写与存档规定,本科生院,,manual,on_demand,2026-05-30,ac6b42f59a688f2e,365,false,article
 nju-jw-028,南京大学本科教务系统缓考申请学生使用手册,南京大学-教务系统缓考申请学生使用手册.md,,pdf,本科生院,本科生,4,no,irregular,PDF待解析，教务系统缓考操作指南,本科生院,,manual,on_demand,2026-05-30,77485e78c515cdda,365,false,heading
@@ -57,9 +57,9 @@ nju-jw-040,事项提醒_培养方案汇编通知,事项提醒_培养方案汇编
 nju-jw-041,交流学习成绩认定流程,交流学习成绩认定流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,交换成绩认定流程及申诉,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,ae8fbe1a003854f8,365,false,article
 nju-jw-042,交流学习课程认定及学分转换申请通知,交流学习课程认定及学分转换申请通知.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,课程认定及学分转换,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,ee9a93007b642167,365,false,article
 nju-jw-043,成绩更正流程,成绩更正流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,成绩更正申请流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,e841c4cb21c80da8,365,false,article
-nju-jw-044,本科生管理规章制度_2025版,本科生管理规章制度_2025版.md,,pdf,本科生院,本科生,1,no,yearly,现行最新版校级规章制度汇编,本科生院,,manual,on_demand,2026-05-30,4c7ec77efee89d6e,365,false,article
+nju-jw-044,本科生管理规章制度_2025版,本科生管理规章制度_2025版.md,,pdf,本科生院,本科生,6,no,yearly,现行最新版校级规章制度汇编,本科生院,,manual,on_demand,2026-05-30,4c7ec77efee89d6e,365,false,article
 nju-jw-045,缓考办理流程,缓考办理流程.md,https://jw.nju.edu.cn,html,本科生院,本科生,2,no,irregular,缓考办理详细流程,本科生院,https://jw.nju.edu.cn,manual,on_demand,2026-05-30,56bfa1948d70b520,365,false,article
-nju-jw-046,辅修相关_学生手册节选,辅修相关_学生手册节选.md,,pdf,本科生院,本科生,4,no,irregular,辅修课程冲突及第二专业说明,本科生院,,manual,on_demand,2026-05-30,a23208a2321f38c0,365,false,heading
+nju-jw-046,辅修相关_学生手册节选,辅修相关_学生手册节选.md,,pdf,本科生院,本科生,6,no,irregular,辅修课程冲突及第二专业说明,本科生院,,manual,on_demand,2026-05-30,a23208a2321f38c0,365,false,heading
 nju-life-016,南哪助手-食堂餐饮指南,南哪助手-食堂餐饮指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-食堂餐饮,南哪助手,,manual,on_demand,2026-05-30,80bbf878fcb4fcc5,365,false,qa
 nju-life-017,南哪助手-图书馆使用指南,南哪助手-图书馆使用指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-图书馆使用,南哪助手,,manual,on_demand,2026-05-30,58c3c0dedebb1c61,365,false,qa
 nju-life-018,南哪助手-校车班车指南,南哪助手-校车班车指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-校车班车,南哪助手,,manual,on_demand,2026-05-30,b0bca8766ce5e873,365,false,qa
@@ -67,8 +67,8 @@ nju-life-019,南哪助手-体育场馆指南,南哪助手-体育场馆指南.md,
 nju-life-020,南哪助手-快递收发指南,南哪助手-快递收发指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-快递收发,南哪助手,,manual,on_demand,2026-05-30,16eb953dfe95f0e6,365,false,qa
 nju-life-021,南哪助手-心理咨询指南,南哪助手-心理咨询指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-心理咨询,南哪助手,,manual,on_demand,2026-05-30,f2ab9513f056a487,365,false,qa
 nju-life-022,南哪助手-奖助学金指南,南哪助手-奖助学金指南.md,,markdown,南哪助手,本科生,4,no,irregular,校园生活指南-奖助学金,南哪助手,,manual,on_demand,2026-05-30,195e135e6627c7a6,365,false,qa
-nju-jw-047,本科生管理规章制度2014版,nju-jw-本科生管理规章制度2014版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-2014版（历史版本）,本科生院,,manual,on_demand,2026-05-30,0c05594d2752d9d2,365,false,article
-nju-jw-048,本科生管理规章制度过渡版,nju-jw-本科生管理规章制度过渡版.md,,markdown,本科生院,本科生,5,no,irregular,南京大学本科规章制度-过渡版（历史版本）,本科生院,,manual,on_demand,2026-05-30,39606a00a709650e,365,false,article
+nju-jw-047,本科生管理规章制度2014版,nju-jw-本科生管理规章制度2014版.md,,markdown,本科生院,本科生,6,no,irregular,南京大学本科规章制度-2014版（历史版本）,本科生院,,manual,on_demand,2026-05-30,0c05594d2752d9d2,365,false,article
+nju-jw-048,本科生管理规章制度过渡版,nju-jw-本科生管理规章制度过渡版.md,,markdown,本科生院,本科生,6,no,irregular,南京大学本科规章制度-过渡版（历史版本）,本科生院,,manual,on_demand,2026-05-30,39606a00a709650e,365,false,article
 nju-edu-001,南京大学本科培养体系,nju-edu-南京大学本科培养体系.md,,markdown,本科生院,本科生,1,no,yearly,南大本科培养体系介绍 三三制三元四维书院制通识教育导师制 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,0b773be5e719f700,365,false,article
 nju-edu-002,南京大学本科专业方向与拔尖项目,nju-edu-南京大学本科专业方向与拔尖项目.md,,markdown,本科生院,本科生,1,no,yearly,64个国家级一流本科专业名单 拔尖计划强基计划至诚计划双学士学位 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,1be258c1698ee030,365,false,article
 nju-edu-003,南京大学苏州校区与新工科,nju-edu-南京大学苏州校区与新工科.md,,markdown,本科生院,本科生,2,no,yearly,苏州校区新工科 机器人与自动化学院集成电路智能科学碳中和 综合自南大官网及招生公众号,本科生院,,manual,on_demand,2026-05-30,f6bb60e11172b3a8,365,false,article
