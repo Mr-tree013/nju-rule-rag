@@ -1,21 +1,36 @@
-id,question,topic,F,gold_in_top5,type,note
-E004,选课系统一般什么时候开放？,选课,2,YES,C,部分依据但"期末考试前一周"具体时间点为编造
-E005,错过了选课时间还能补选吗？,选课,2,YES,C,混入"即选即中"等非来源细节
-E009,缓考成绩和正常考试一样吗？,缓考,1,NO,A,检索失败-gold不在top-5
-E012,补考一般安排什么时候？,补考,1,YES,C,gold在top-5但答案编造"12:00截止""公共课时间"等具体数字
-E013,补考要自己报名吗？流程是什么？,补考,1,YES,C,编造"成绩通知单""证明材料"等流程步骤
-E014,补考通过的课程成绩怎么显示？,补考,1,YES,E,答案基本正确(两个成绩/60分计入)-裁判过严
-E017,重修需要重新上课吗？,重修,1,YES,C,部分正确但混入编造的流程细节
-E018,重修要不要额外交钱？,重修,1,YES,C,严重编造"第一次免费""每学分500元"
-E020,同一门课可以重修几次？,重修,1,YES,E,答案直接从来源摘取-裁判误判
-E025,缓考和补考的成绩有效期是多久？,成绩/绩点,1,YES,C,部分正确但编造"2021-2024级推免"细节
-E028,休学之后怎么复学？,学籍异动,1,YES,C,基本流程对但编造了具体时间点
-E040,全球科考项目怎么报名？,交换/课程认定,1,YES,C,严重编造具体日期/邮箱/电话/房间号
-E043,学业预警会记入档案吗？,学业预警,1,YES,E,合理回答(说不确定+建议问教务)-裁判过严
-E044,累计几次学业预警会被劝退？,学业预警,1,YES,C,编造"三次"具体数字
-E045,家里有事可以请长假吗？,学业预警,1,YES,E,回答"六周"来自来源-裁判误判
-E048,考试作弊的处分决定会在档案里留多久？,处分/退学/学位,2,YES,C,编造"九个月"具体期限
-E055,挂科太多会被退学吗？,处分/退学/学位,1,YES,C,部分正确但"旷课50学时"可能编造
-E101,仙林校区宿舍是几人间？,校园生活,1,YES,E,回答正确(4人间)-裁判误判
-E103,学生证买火车票有优惠吗？,校园生活,1,YES,C,编造"75折"具体折扣
-E110,新生入学需要预防哪些诈骗？,校园生活,2,YES,E,回答合理有来源-裁判过严
+id,question,F,category,detail
+E007,缓考要怎么申请？,1,F2,Fabrication/ignore-retrieval: 回答编造了表格、教师签字等流程，与资料严重不符。
+E020,同一门课可以重修几次？,2,F2,Fabrication/ignore-retrieval: 编造了总评低于80分可重修一次，资料未提
+E021,重修会影响保研吗？,2,F2,Short (37 chars) or heavy hedging (0x) — fallback
+E030,学籍状态异常了怎么办？,1,F2,Short (36 chars) or heavy hedging (0x) — fallback
+E032,辅修有什么要求？怎么申请？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，未基于参考资料
+E035,辅修挂科了怎么办？,1,F2,Short (34 chars) or heavy hedging (0x) — fallback
+E038,交换申请需要什么材料？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造流程
+E039,课程认定失败了怎么办？,1,F2,Short (55 chars) or heavy hedging (1x) — fallback
+E043,学业预警会记入档案吗？,1,F2,Short (38 chars) or heavy hedging (0x) — fallback
+E102,校园网怎么收费？超出时长怎么办？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离资料，编造收费信息
+E105,军训一般什么时候？多长时间？,2,F2,Fabrication/ignore-retrieval: 资料有军训时间信息，回答却说没写，不忠实且不完整。
+E107,大学生医保怎么用？,2,F2,Fabrication/ignore-retrieval: 回答编造了转诊定点医院等细节，资料未提及
+E111,助学贷款怎么申请？,1,F2,Short (61 chars) or heavy hedging (0x) — fallback
+E113,鼓楼校区宿舍条件怎么样？,2,F2,Fabrication/ignore-retrieval: 编造独立卫浴、热水器、智能充电桩等
+E114,新生报到需要带什么？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与参考资料无关
+E202,南大录取专业有级差吗？,1,F2,Short (22 chars) or heavy hedging (1x) — fallback
+E203,大一新生报到需要带什么材料？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与参考资料无关
+E204,二次选拔是怎么回事？怎么报名？,1,F4,Tier 3 refusal but sources had info: 资料充分却错误拒答，完全未使用
+E211,挂过科还能保研吗？,1,F2,Short (39 chars) or heavy hedging (0x) — fallback
+E216,突然遇到困难能申请临时补助吗？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，与资料无关
+E220,学生会和社团有什么区别？,2,F2,Fabrication/ignore-retrieval: 部分内容超出资料范围，如社团活动不计入综评
+E228,校园网PJSD密码是什么？怎么设？,1,F2,Fabrication/ignore-retrieval: 回答编造了设置方法，未依据资料
+E233,体测不及格影响毕业吗？,2,F2,Missing key info: 遗漏关键毕业要求，回答不准确
+E234,南大考研有哪些专业方向？,1,F4,Wrong refusal — sources had info: 资料明确有专业方向，回答错误拒答
+E238,鼓楼校区出门有什么生活设施？,1,F2,Fabrication/ignore-retrieval: 回答编造了资料未提及的设施，且未回应问题核心
+E239,苏州校区偏僻吗？周边有什么？,1,F2,Fabrication/ignore-retrieval: 回答编造地址和描述，未基于参考资料。
+E241,寒假和暑假各放多久？,2,F2,Short (69 chars) or heavy hedging (2x) — fallback
+E242,小学期是什么？必须上吗？,1,F2,Fabrication/ignore-retrieval: 回答完全脱离参考资料，编造内容
+E247,国家奖学金需要什么条件才能申请？,1,F2,Fabrication/ignore-retrieval: 回答不完整且未基于资料
+E252,考试作弊被抓会有什么后果？,1,F2,Fabrication/ignore-retrieval: 编造一般作弊记过处分，超出资料范围
+E255,辅修需要多修多少学分？,1,F2,Fabrication/ignore-retrieval: 回答完全编造，资料未提及具体学分
+E256,辅修专业和主修专业课程冲突怎么办？,1,F2,Short (49 chars) or heavy hedging (0x) — fallback
+E259,收到可疑的学费催缴短信怎么辨别是不是诈骗？,1,F2,Short (45 chars) or heavy hedging (0x) — fallback
+E262,保健体育课是什么？什么情况可以申请？,1,F2,Fabrication/ignore-retrieval: 回答完全编造流程，与资料无关
+E273,学分绩怎么算的？多少分算优秀？,2,F2,Fabrication/ignore-retrieval: 编造优秀标准，遗漏平均学分绩公式
