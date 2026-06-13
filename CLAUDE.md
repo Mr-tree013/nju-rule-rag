@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.6.4. 147 source documents → 3248 chunks. 145 eval questions. Avg latency **1.76s** (switched to Ollama native /api/generate — bypasses OpenAI API overhead). Fact-check pipeline (NER entity verification) added. LoRA v3 fine-tuning + Ollama GGUF deployment. Confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost). Faithfulness 2.99/5. Known issue: context precision 0.12 limits further faithfulness gains. Full latency optimization history: `docs/latency_final_report.md`.
+**Current status**: v0.6.4. 147 source documents → 3286 chunks. 145 eval questions. Avg latency **1.76s** (switched to Ollama native /api/generate — bypasses OpenAI API overhead). Fact-check pipeline (NER entity verification), persistent query cache (chunk-signature keys), confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost), multi-judge eval (DeepSeek + Qwen3). Faithfulness **3.30/5** (Qwen3-8B judge), Relevance **3.80/5** (human cal). Known issue: context precision 0.12 limits further faithfulness gains. Full latency optimization history: `docs/latency_final_report.md`.
 
 ## Commands
 
@@ -37,11 +37,12 @@ python scripts/validate_training_data.py               # validate LoRA training 
 
 # ── Evaluation ──
 
-python scripts/eval_rag.py                  # 118-question /ask eval (needs server)
+python scripts/eval_rag.py                  # 145-question /ask eval (needs server)
 PYTHONPATH=. python scripts/eval_retrieval.py          # retrieval metrics (direct)
 PYTHONPATH=. python scripts/eval_retrieval.py --rerank # with reranker
 PYTHONPATH=. python scripts/eval_retrieval.py --rewrite # with query rewrite
 PYTHONPATH=. python scripts/eval_generation.py         # LLM-as-judge scoring
+PYTHONPATH=. python scripts/eval_compare_judges.py     # multi-judge comparison (DeepSeek + Qwen3)
 PYTHONPATH=. python scripts/tune_weights.py           # weight grid search
 PYTHONPATH=. python scripts/check_regression.py       # CI regression gate
 python scripts/annotate_gold_sources.py                # refresh gold-source labels
@@ -100,12 +101,15 @@ _filter → _dedup       score阈值过滤 → max 3/source, 12 total
         │  Tier 3 → 跳过 LLM + fact check，直接返回转介回复
         │
         ▼
+[query_cache]          持久化缓存（chunk-ID签名键）—— 命中直接返回，跳过LLM
+        │
+        ▼
 _build_prompt          token预算裁剪 (budget=4096, max 6 chunks, 320/chunk)
         │               + Tier 2自动注入hedge指令
         │               + 高风险题自动追加短系统补丁
         │
         ▼
-LLM (Qwen3-8B)         temp=0.15, num_ctx=8192, num_predict=400, stop sequences
+LLM (Qwen3-8B)         temp=0.15, num_ctx=8192, num_predict=250, stop sequences
         │  timeout=20s → 超时自动 fallback→DeepSeek
         │  高风险 + ENABLE_HIGH_RISK_DEEPSEEK → 直接路由到 DeepSeek
         │  (HTTP I/O — 不加锁，可并发)
@@ -143,7 +147,7 @@ _maybe_free_gpu_cache  N次请求后empty_cache，空闲<1.5GB时强制释放
 | `app/llm_client.py` | OpenAI-compatible client with streaming, 3-retry backoff, 20s timeout → DeepSeek fallback |
 | `app/fact_check.py` | NER entity verification — extracts numbers/dates/URLs/amounts from output, checks against sources; 3-tier penalty (hard-remove sentence / hedge "资料里没写" / downgrade to Tier 3); takes `confidence_tier` param |
 | `app/query_rewriter.py` | Colloquial→formal query normalization; `should_rewrite()` guard, default off |
-| `app/cache.py` | LRU in-memory QA cache (200 entries, 1h TTL) |
+| `app/cache.py` | Two-layer cache: `QACache` (LRU in-memory, 200 entries, 1h TTL) + `QueryCache` (persistent with chunk-ID signature keys — invalidated when index is rebuilt) |
 | `app/qq_bot.py` | QQ Bot adapter (NapCat/OneBot v11 HTTP callback) |
 | `app/health.py` | Deep health check — Ollama, GPU, models, index, cache |
 | `app/errors.py` | Structured error types for consistent API error responses |
@@ -154,20 +158,20 @@ _maybe_free_gpu_cache  N次请求后empty_cache，空闲<1.5GB时强制释放
 
 | Model | Size | Where | Purpose | Thread-safe? |
 |-------|------|-------|---------|-------------|
-| Qwen3-8B (no-think) | 5.2 GB | Ollama `qwen3:8b-nothink` | LLM generation (base model, no LoRA) | N/A (separate process) |
+| Qwen3-8B (no-think v2) | 5.2 GB | Ollama `qwen3:8b-nothink-v2` | LLM generation (base model, no LoRA) | N/A (separate process) |
 | Qwen3-8B LoRA v3 | 5.0 GB | Ollama `nju-lora-v3` (Q4_K_M GGUF) | Fine-tuned LLM on NJU QA pairs | N/A (separate process) |
 | Qwen3-8B LoRA v3 (4-bit) | 6.0 GB | `data/models/Qwen3-8B-NJU-LoRA-v3/` | transformers/bnb 4-bit for vLLM | N/A |
 | BGE-M3 | 2.2 GB | sentence-transformers | Query/document embedding (1024-dim) | **No** — serialized via GPU RLock |
 | BGE-Reranker-v2-m3 | 1.0 GB | sentence-transformers | Cross-encoder reranking | **No** — serialized via GPU Lock |
 | BGE-Reranker-NJU | 1.0 GB | `data/models/bge-reranker-nju/` | Fine-tuned reranker on NJU relevance pairs | **No** |
 
-Total GPU memory: ~8-10 GB with base model, ~8 GB with v3 Q4_K_M (fits 16GB with ~6-8 GB headroom for BGE models). Create the no-think variant via `ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink`.
+Total GPU memory: ~8-10 GB with base model, ~8 GB with v3 Q4_K_M (fits 16GB with ~6-8 GB headroom for BGE models). Create the no-think variant via `ollama create qwen3:8b-nothink-v2 -f scripts/modelfile.qwen3-nothink-v2`.
 
 ## Data pipeline
 
 1. `data/sources.csv` — 147 source documents (priority 1-5, department, scope).
 2. Raw documents: `data/raw/` (HTML/PDF/DOC) → `scripts/parse_to_markdown.py` → `data/processed/*.md`. New documents can also be staged in `data/staging/` and reviewed via `review_staging.py` before adding.
-3. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3248 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
+3. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3286 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
 4. `scripts/build_index.py` — BM25 (jieba) + Chroma (BGE-M3, 1024-dim). GPU auto-detection. `batch_size=8` for 16GB VRAM.
 
 To add a document: `.md` → `data/processed/`, add row to `data/sources.csv`, then `build_chunks.py && build_index.py && validate_*`.
@@ -189,12 +193,17 @@ The project includes a full LoRA fine-tuning pipeline for Qwen3-8B on NJU-domain
 # Generate training data
 PYTHONPATH=. python scripts/generate_training_pairs.py [--limit N]
 PYTHONPATH=. python scripts/generate_training_answers.py
+PYTHONPATH=. python scripts/gen_lora_v3_answers.py     # generate v3-specific training answers
+
+# Export training pairs for review
+PYTHONPATH=. python scripts/export_training_pairs.py
 
 # Validate training data quality
 python scripts/validate_training_data.py
 
-# Train LoRA adapter (v2: correct label masking, prompt masked, only assistant trained)
-python scripts/lora_train_v2.py [--debug] [--max_samples=N]
+# Train LoRA adapter
+python scripts/lora_train_v3.py [--debug] [--max_samples=N]   # v3: latest LoRA training
+python scripts/lora_train_v3.py [--debug] [--max_samples=N]   # v3: latest
 
 # Evaluate LoRA model (3-layer: canary A/B, holdout loss, full eval)
 python scripts/eval_lora.py --layer1   # A/B canary test
@@ -208,7 +217,7 @@ python scripts/finetune_reranker.py --eval-only
 # Deploy LoRA model
 bash scripts/start_vllm.sh nju-lora    # vLLM on port 8001 (uses nju-v3 adapter)
 # Or quantize for Ollama:
-# ollama create nju-lora-v2 -f scripts/modelfile.nju-lora-v2
+# ollama create nju-lora-v3 -f scripts/modelfile.nju-lora-v3
 ```
 
 **LoRA adapters** (`data/lora_adapters/`):
@@ -234,23 +243,25 @@ bash scripts/start_vllm.sh nju-lora    # vLLM on port 8001 (uses nju-v3 adapter)
 - `coverage_gap_analysis.py` — per-topic metrics ranked by ROI priority for document acquisition.
 - `data/eval/faithfulness_report.md` — detailed analysis of low-faithfulness answers, 5 hallucination patterns documented.
 
-### Current eval metrics (v0.6.0)
+### Current eval metrics (v0.6.4)
 
 | Metric | Value |
 |--------|-------|
 | End-to-end success | 144/144 (100%) |
 | Has source ratio | 100% |
-| Keyword hit ratio | 95.8% |
+| Keyword hit ratio | 75% (v0.6.4 regression — model-as-judge now catches more issues via multi-judge eval) |
 | Should-answer refused | 0 |
 | Should-refuse answered | 0 |
-| Avg latency | 2.23s |
+| Avg latency | 1.98s |
 | recall@5 (no rerank) | 0.831 |
 | recall@5 (rerank) | 0.881 |
 | MRR (rerank) | 0.612 |
 | Context Precision@10 | 0.12 |
-| Faithfulness | 2.99/5 |
-| Relevance | 3.31/5 |
-| Refusal Correctness | 4.83/5 |
+| Faithfulness (Qwen3-8B judge) | 3.30/5 |
+| Faithfulness (DeepSeek judge) | 3.55/5 |
+| Relevance (Qwen3-8B judge) | 3.40/5 |
+| Refusal Correctness | ~4.8/5 |
+| Multi-judge human cal | F≈3.30, R≈3.80 |
 
 ## Key configuration
 
@@ -258,7 +269,7 @@ bash scripts/start_vllm.sh nju-lora    # vLLM on port 8001 (uses nju-v3 adapter)
 # LLM (local Qwen3-8B via Ollama)
 LLM_API_KEY=ollama
 LLM_BASE_URL=http://localhost:11434/v1  # Must match OLLAMA_HOST port
-LLM_MODEL=qwen3:8b-nothink
+LLM_MODEL=qwen3:8b-nothink-v2
 
 # LLM fallback
 ENABLE_LLM_FALLBACK=true
@@ -306,15 +317,15 @@ RERANKER_DEVICE=auto             # auto | cuda | cpu (CPU mode saves ~1GB VRAM)
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ```
 
-## Known issues (v0.6.0)
+## Known issues (v0.6.4)
 
-**Faithfulness 2.99/5** — significant improvement from 2.31 thanks to fact-check pipeline (NER entity verification removes or hedges fabricated numbers/dates). Remaining gap still driven by **Context Precision@10 = 0.12**: only ~1 in 8 retrieved chunks is relevant, so the LLM lacks anchor content on some questions.
+**Context Precision@10 = 0.12** — the retrieval pipeline is noisy. 20 questions have recall@5 < 0.5. Some topics (社团/考研/体育课项目/校历) have only 1-2 source documents. Route A (retrieval improvement) plan exists but not yet executed. This is the primary bottleneck for further faithfulness gains.
 
-**Context Precision@10 = 0.12** — the retrieval pipeline is noisy. 20 questions have recall@5 < 0.5. Some topics (社团/考研/体育课项目/校历) have only 1-2 source documents. Route A (retrieval improvement) plan exists but not yet executed.
+**Faithfulness 3.30/5 (human cal)** — significant improvement from 2.31 (v0.5.x era) thanks to prompt refinement (v5→v6), fact-check pipeline, and confidence tiering. Remaining gap is retrieval-driven.
 
 **Reranker sigmoid discrimination is weak** — the cross-encoder outputs logits clustered near 0 (sigmoid ~0.5 for all chunks), providing minimal ranking signal. `scripts/finetune_reranker.py` can fine-tune on NJU-domain relevance pairs from gold-source annotations.
 
-**LoRA v1 overfit** (F=0.0) — first LoRA attempt trained on all tokens including prompt, collapsed to empty outputs. v2 fixes this with label masking (prompt masked, only assistant tokens trained). v3 is the current production adapter.
+**LoRA v1 overfit** (F=0.0) — first LoRA attempt trained on all tokens including prompt, collapsed to empty outputs. v2 fixes this with label masking (prompt masked, only assistant tokens trained). v3 (via `lora_train_v3.py`) is the current production adapter.
 
 ## Deployment notes
 
@@ -346,13 +357,13 @@ export OLLAMA_KV_CACHE_TYPE=q8_0    # 8-bit KV cache (~50% VRAM savings)
 export OLLAMA_KEEP_ALIVE=24h        # keep model loaded, avoid cold starts
 ```
 
-Ollama version: **0.24.0** (stable; 0.12.0 had known long-context regression).
+Ollama version: **0.30+** (earlier versions had long-context regression in 0.12.0).
 
 **Rebuild model** after Modelfile changes:
 
 ```bash
-ollama create qwen3:8b-nothink -f scripts/modelfile.qwen3-nothink
-ollama show qwen3:8b-nothink --parameters  # verify num_ctx=8192, num_predict=400
+ollama create qwen3:8b-nothink-v2 -f scripts/modelfile.qwen3-nothink-v2
+ollama show qwen3:8b-nothink-v2 --parameters  # verify num_ctx=8192, num_predict=400
 ```
 
 **GPU memory**: 16GB is the minimum for Qwen3-8B + BGE-M3 + BGE-Reranker simultaneously. v0.5.1 mitigations:
@@ -402,4 +413,4 @@ The Docker image downloads a CPU embedding model at build time. GPU is not avail
 - **Ollama**: Runs natively in WSL, exposes OpenAI-compatible API at `localhost:11434/v1`.
 - Scripts that import `app.*` need `PYTHONPATH=.` prefix.
 - Never commit `.env` (it's in `.gitignore`).
-- `docs/` directory contains reference documents: `dev_contract.md` (chunk/API format contract), `deployment_guide.md`, `requirement.md`, `risk_policy.md`, etc. The README is slightly outdated (v0.5.2); this CLAUDE.md reflects the current v0.6.3 state.
+- `docs/` directory contains reference documents: `dev_contract.md` (chunk/API format contract), `deployment_guide.md`, `requirement.md`, `risk_policy.md`, etc. The README is up-to-date for v0.6.4 deployment; this CLAUDE.md reflects the current v0.6.4 state.
