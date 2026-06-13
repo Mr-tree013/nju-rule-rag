@@ -7,6 +7,7 @@ without rewriting the whole flow.
 """
 
 import time
+import random
 import threading
 from typing import Any
 
@@ -230,25 +231,115 @@ class RAGPipeline:
     # ── Step methods (override in subclasses) ───────────────────
 
     def _handle_meta_question(self, question: str) -> dict | None:
-        """Return a canned response for meta-questions or irrelevant chat, or None."""
+        """Return a natural canned response for meta-questions and casual chat, or None."""
         q = question.strip().lower()
-        meta_patterns = {
-            ("你是谁", "你是什么", "你是干啥", "介绍自己", "自我介绍",
-             "你的名字", "叫什么", "你好", "嗨", "hi", "hello",
-             "你能干什么", "你能做什么", "你有什么功能", "你能干嘛",
-             "你可以做什么", "你会什么", "你会干啥", "你的能力",
-             "你怎么用", "如何使用你", "使用说明", "help", "帮助"): (
-                "我是南鉴Bot，一个专注南京大学本科校规与教务流程的问答助手。\n\n"
-                "你可以直接问我：\n"
-                "  - 选课、缓考、补考、重修的流程和条件\n"
-                "  - 转专业、辅修、休学、交换的要求\n"
-                "  - 绩点计算、学业预警、毕业学分\n"
-                "  - 宿舍、校园卡、校医院、军训等校园生活问题\n\n"
-                "直接在群里发 /问 或 /ask 加上你的问题即可。\n"
-                "注意：我只能回答校规相关的问题，不提供个人情况判断。"
-            ),
-        }
-        # Irrelevant chat / insults / meta questions that should get a polite redirect
+
+        # ── Bot introduction ──────────────────────────────────────
+
+        intro_keywords = ("你是谁", "你是什么", "你是干啥", "介绍自己", "自我介绍",
+                          "你的名字", "叫什么",
+                          "你能干什么", "你能做什么", "你有什么功能", "你能干嘛",
+                          "你可以做什么", "你会什么", "你会干啥", "你的能力",
+                          "你怎么用", "如何使用你", "使用说明", "help", "帮助")
+        for kw in intro_keywords:
+            if kw in q:
+                return self._meta_response(question,
+                    "我是南鉴Bot，一个专注南京大学本科校规与教务流程的问答助手。\n\n"
+                    "你可以直接问我：\n"
+                    "  - 选课、缓考、补考、重修的流程和条件\n"
+                    "  - 转专业、辅修、休学、交换的要求\n"
+                    "  - 绩点计算、学业预警、毕业学分\n"
+                    "  - 宿舍、校园卡、校医院、军训等校园生活问题\n\n"
+                    "直接在群里 @我 或发 /问 加上你的问题就行。"
+                )
+
+        # ── Compliments (before greetings — avoid "你好厉害" → matched as "你好") ──
+
+        compliment_keywords = ("你好厉害", "牛啊", "牛哇", "好聪明", "太棒了",
+                               "厉害厉害", "你真棒", "好用", "不错啊", "可以啊",
+                               "你好强", "nb", "niubi", "牛鼻")
+        for kw in compliment_keywords:
+            if kw in q:
+                replies = [
+                    "谢谢～我就是把校规资料整理了一下，能帮到你就好！",
+                    "哈哈过奖了，主要是南大的校规资料比较齐全。有什么想问的？",
+                    "嘿嘿谢谢！有问题随时发，我尽量答。",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
+        # ── Laughter / emoji ──────────────────────────────────────
+
+        laugh_keywords = ("哈哈", "嘿嘿", "呵呵", "嘻嘻", "hhh", "233", "笑死",
+                          "笑死我了", "好笑", "乐")
+        for kw in laugh_keywords:
+            if kw in q and len(q) <= 15:
+                replies = [
+                    "哈哈，有什么好玩的也给我讲讲？当然问校规问题更好～",
+                    "😄 笑完了有问题随时问我，选课补考宿舍都行。",
+                    "嘿嘿，开心就好！有啥校规方面的问题尽管问。",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
+        # ── Casual greetings (exact or short match) ───────────────
+
+        greet_keywords = ("在吗", "在不在", "有人吗", "早啊", "早呀", "晚上好",
+                          "下午好", "hello", "hi", "嗨", "你好呀", "哈喽", "你好啊")
+        for kw in greet_keywords:
+            if kw == q or q.startswith(kw):
+                replies = [
+                    "在呢～有什么校规或者教务流程想了解的？直接问我就行。",
+                    "来了！你是想问什么校规相关的问题吗？",
+                    "哈哈在的，有啥想问的直接发就行，不用客气。",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
+        # "你好" alone — only exact match (not "你好厉害")
+
+        if q in ("你好", "你好呀", "你好啊", "你好哈"):
+            replies = [
+                "你好呀～有什么校规或者教务流程想了解的？",
+                "嗨！想问什么直接发就行。",
+            ]
+            return self._meta_response(question, random.choice(replies))
+
+        # "晚安" — don't redirect to school rules
+
+        if q in ("晚安", "晚安啦", "拜拜", "再见", "bye", "bye bye"):
+            replies = [
+                "晚安～明天有问题再来找我。",
+                "晚安！有需要再 @我。",
+                "拜拜，有问题随时来问～",
+            ]
+            return self._meta_response(question, random.choice(replies))
+
+        # ── Location questions ────────────────────────────────────
+
+        location_keywords = ("这是哪里", "这是什么群", "这个群是干嘛", "这群干嘛",
+                             "你是什么群", "什么群", "哪个群")
+        for kw in location_keywords:
+            if kw in q:
+                replies = [
+                    "这里是南大校规答疑群，我是群里的校规查询 Bot～有什么教务流程想了解的可以 @我 提问。",
+                    "这个群是南大本科校规问答群，我是负责回答校规问题的机器人，补考、选课、缓考这些都能问我。",
+                    "南大校规问答群！我是群里的校规查询助手，你想问什么直接 @我 就行。",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
+        # ── Thanks ────────────────────────────────────────────────
+
+        thanks_keywords = ("谢谢", "谢谢啦", "谢啦", "感谢", "多谢", "谢谢bot",
+                           "谢谢机器人", "谢谢学长")
+        for kw in thanks_keywords:
+            if kw in q and len(q) <= 10:
+                replies = [
+                    "不客气～还有其他问题随时问我。",
+                    "没事！有需要再 @我。",
+                    "应该的，有问题再来～",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
+        # ── Polite redirect for insults / irrelevant / troll ──────
+
         redirect_patterns = (
             "你有智力", "你傻", "sb", "傻逼", "傻b", "nm", "你懂吗",
             "你会思考吗", "你有意识", "你聪明", "笨蛋", "废物",
@@ -256,18 +347,24 @@ class RAGPipeline:
             "聊天", "无聊", "讲个笑话", "开玩笑",
             "你是真人", "你是假的", "你是ai", "你是机器人",
             "介绍你自己", "介绍下自己",
+            "我爱你", "我喜欢你", "爱你", "喜欢你", "么么哒",
+            "牛逼不牛逼", "牛不牛", "六六六", "666",
+            "你妈", "草泥马", "操你", "cnm", "fuck",
+            # Emotional / casual chat — don't run RAG
+            "好伤心", "好难过", "好累", "好无聊", "好烦", "好焦虑",
+            "哭了", "想哭", "心累", "emo", "破防",
+            "像人了一点", "像个人", "像人了",
+            "吃了吗", "吃了没", "吃饭了", "在吃饭",
         )
-        for patterns, response in meta_patterns.items():
-            for p in patterns:
-                if p in q:
-                    return self._meta_response(question, response)
         for p in redirect_patterns:
             if p in q:
-                return self._meta_response(
-                    question,
-                    "我是南大校规查询助手，只能回答选课、缓考、补考、学分、宿舍等校规相关问题。\n"
-                    "试试发 /问 补考没过怎么办 来了解我能做什么。"
-                )
+                replies = [
+                    "我是南大校规查询助手，还是聊点正经的吧～你想了解什么校规？",
+                    "这个超出我的业务范围了哈哈，问点校规相关的？补考选课宿舍都行。",
+                    "抱歉哈，我只能回答校规和教务流程问题。你试试问「补考没过怎么办」这种？",
+                ]
+                return self._meta_response(question, random.choice(replies))
+
         return None
 
     def _meta_response(self, question: str, answer: str) -> dict:
@@ -597,7 +694,7 @@ class RAGPipeline:
 问题：{question}
 关键事实："""
 
-    REWRITE_PROMPT = """你是南大学长，帮同学整理校规信息。用直接好懂的话回答，**只用下面列出的事实信息**。
+    REWRITE_PROMPT = """你是南鉴Bot，帮同学整理校规信息。用直接好懂的话回答，**只用下面列出的事实信息**。
 
 铁律：
 1. 只能使用下面"事实信息"里明确写出的内容。不在事实列表里的数字、日期、金额、网址绝对不写。

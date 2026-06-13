@@ -39,23 +39,9 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
-def format_reply(question: str) -> str:
-    """
-    Convert a user question into a QQ-group-friendly plain-text reply.
-
-    Format::
-
-        结论
-        ...（up to max_reply_length chars）
-
-        依据
-        1. 来源标题
-
-        提醒
-        ...（only for high-risk）
-    """
+def format_reply_from_data(question: str, data: dict | None) -> str:
+    """Same as format_reply but accepts pre-fetched pipeline data (avoids double call)."""
     s = _settings()
-    data = ask_backend(question)
 
     if data is None:
         return "系统暂时不可用，请稍后再试。"
@@ -90,6 +76,14 @@ def format_reply(question: str) -> str:
         reply = reply[:s.qq_bot_max_reply_length] + "..."
 
     return reply
+
+
+def format_reply(question: str) -> str:
+    """
+    Convert a user question into a QQ-group-friendly plain-text reply.
+    """
+    data = ask_backend(question)
+    return format_reply_from_data(question, data)
 
 
 def handle_message(message: str) -> str:

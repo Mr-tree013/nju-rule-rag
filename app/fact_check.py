@@ -16,9 +16,18 @@ from typing import Any
 # ── Extraction patterns ──────────────────────────────────────────
 
 # Numbers with units: "500元", "20学分", "3次", "50%", "4人间", "14个学分"
-# Note: excludes 天/周/月/年 (handled by DATE_RE) and 人/个 (too common)
 AMOUNT_RE = re.compile(
     r"\d+(?:\.\d+)?\s*(?:元|块|学分|次|%|万元|千元|百元)"
+)
+
+# Fabricated counts: "有8个学院", "七大新生书院", "8学院+10研究院+4中心"
+# The model claiming exact totals when the sources don't — zero-tolerance
+_COUNT_DIGITS = r"(?:\d+|[一二三四五六七八九十]+)"
+_COUNT_COUNTER = r"(?:大|个|所|家|栋|座|处|间|门|届|批|类|种)"
+_COUNT_NOUNS = r"(?:学院|研究院|书院|校区|中心|实验室|团队|园区|社团|部门|方向|食堂)"
+COUNT_RE = re.compile(
+    rf"(?:共有?|有|总计|一共|是|约有?|大约|约)\s*{_COUNT_DIGITS}\s*{_COUNT_COUNTER}|"
+    rf"\b{_COUNT_DIGITS}\s*{_COUNT_NOUNS}"
 )
 
 # Time patterns: "12:00", "9月15日", "2024年", "第3周", "3-8周"
@@ -60,6 +69,8 @@ def extract_facts(text: str) -> list[dict[str, str]]:
         # Zero-tolerance items
         for m in AMOUNT_RE.finditer(sent):
             facts.append({"type": "amount", "value": m.group(), "sentence": sent[:120]})
+        for m in COUNT_RE.finditer(sent):
+            facts.append({"type": "count", "value": m.group(), "sentence": sent[:120]})
         for m in URL_RE.finditer(sent):
             facts.append({"type": "url", "value": m.group(), "sentence": sent[:120]})
         for m in EMAIL_RE.finditer(sent):
@@ -79,7 +90,7 @@ def extract_facts(text: str) -> list[dict[str, str]]:
 
 
 def _is_zero_tolerance(fact_type: str) -> bool:
-    return fact_type in ("amount", "url", "email", "phone")
+    return fact_type in ("amount", "url", "email", "phone", "count")
 
 
 def _build_normalized_corpus(chunks: list[dict]) -> str:

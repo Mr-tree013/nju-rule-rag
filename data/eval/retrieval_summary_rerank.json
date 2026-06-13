@@ -1,5 +1,5 @@
 {
-  "evaluated_at": "2026-05-31 18:25:05",
+  "evaluated_at": "2026-06-01 23:01:27",
   "total_questions": 144,
   "evaluated": 144,
   "skipped_no_gold": 0,
@@ -9,9 +9,9 @@
   "recall@10": 0.8611,
   "recall@20": 0.8819,
   "recall@40": 0.8819,
-  "mrr": 0.5078,
+  "mrr": 0.5077,
   "ndcg@10": 0.7023,
-  "gold_chunk_rank": 7.3125,
+  "gold_chunk_rank": 7.3194,
   "gold_chunk_rank_median": 2.5,
   "context_precision@10": 0.1181,
   "context_recall@10": 0.6092

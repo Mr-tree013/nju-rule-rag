@@ -4,7 +4,7 @@
 
 MODEL=${1:-nju-lora}
 BASE_MODEL="Qwen/Qwen3-8B"
-LORA_PATH="data/lora_adapters/nju-v1"
+LORA_PATH="data/lora_adapters/nju-v3"
 PORT=8001
 
 echo "=== Starting vLLM ($MODEL) ==="
@@ -19,7 +19,7 @@ if [ "$MODEL" = "base" ]; then
 elif [ "$MODEL" = "nju-lora" ]; then
     if [ ! -d "$LORA_PATH" ]; then
         echo "ERROR: LoRA adapter not found at $LORA_PATH"
-        echo "Run: python scripts/lora_train.py first"
+        echo "Run: python scripts/lora_train_v3.py first"
         exit 1
     fi
     echo "Mode: base + nju-lora adapter"

@@ -74,7 +74,7 @@ class TestSettings:
 
     def test_system_prompt_default(self):
         s = Settings()
-        assert "南京大学" in s.system_prompt
+        assert "南鉴Bot" in s.system_prompt
         assert "参考资料" in s.system_prompt
 
 

@@ -431,7 +431,11 @@ def qq_webhook(data: dict):
         return {"reply": ""}
 
     logger.info("qq_webhook processing text=%.200s", text)
-    reply = handle_message(text)
+    from app.qq_bot import format_reply_from_data
+    data = answer_question(text)
+    request_id = str(uuid.uuid4())[:8]
+    _log_request(request_id, text, data)
+    reply = format_reply_from_data(text, data)
     if not reply:
         return {"reply": ""}
     logger.info("qq_webhook reply=%.100s elapsed=%.1fs", reply, time.time() - t0)

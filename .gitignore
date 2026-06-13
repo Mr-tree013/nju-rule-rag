@@ -17,3 +17,4 @@ CLAUDE.md
 *.swp
 *.swo
 .DS_Store
+data/cache/

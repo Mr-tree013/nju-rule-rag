@@ -84,6 +84,8 @@ class TestRAGPipelineAnswer:
         assert "抱歉" in r["answer"]
 
     def test_llm_error_fallback(self, pipeline, mock_llm):
+        from app.cache import query_cache
+        query_cache._mem.clear()
         mock_llm.chat.side_effect = LLMError("API timeout")
         r = pipeline.answer("缓考怎么申请？")
         assert "系统暂时不可用" in r["answer"]
@@ -91,6 +93,8 @@ class TestRAGPipelineAnswer:
 
     def test_llm_fallback_to_secondary(self, mock_retriever, mock_llm):
         """When primary fails and fallback is configured, use fallback."""
+        from app.cache import query_cache
+        query_cache._mem.clear()
         fallback = MagicMock()
         fallback.chat.return_value = "来自回退模型的回答。"
         fallback.model = "fallback-model"
@@ -108,6 +112,8 @@ class TestRAGPipelineAnswer:
 
     def test_llm_used_tracks_primary(self, pipeline, mock_llm):
         """debug.llm_used should be set to primary model name."""
+        from app.cache import query_cache
+        query_cache._mem.clear()
         mock_llm.model = "my-primary-model"
         r = pipeline.answer("缓考怎么申请？")
         assert r["debug"]["llm_used"] == "my-primary-model"
