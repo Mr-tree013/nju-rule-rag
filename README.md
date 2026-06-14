@@ -2,9 +2,9 @@
 
 南京大学本科校规与教务流程 RAG（检索增强生成）问答系统。
 
-基于 147 份校规、办事指南和校园生活文档（3,286 chunks），支持自然语言提问、来源引用、风险分级与拒答机制。已接入 QQ Bot（NapCat + OneBot v11）。
+基于 220 份校规、办事指南和校园生活文档（3,441 chunks），支持自然语言提问、来源引用、风险分级与拒答机制。已接入 QQ Bot（NapCat + OneBot v11）。
 
-**当前版本**: v0.6.4 | 144 道评测题 | 延迟 1.76s | 忠实度 3.30/5 | 来源覆盖率 100%
+**当前版本**: v0.7.0 | 145 道评测题 | 延迟 1.76s | 忠实度 3.30/5 | 来源覆盖率 100% | 身份: 南鉴Bot
 
 ---
 
@@ -38,6 +38,7 @@ PYTHONPATH=. python scripts/build_index.py
 # 7. 一键启动
 ./scripts/start_server.sh           # 生产模式
 ./scripts/start_server.sh --reload  # 开发模式（自动重载）
+./scripts/start_daemon.sh           # 后台守护（tmux/nohup 自动检测）
 ```
 
 看到 `[Pipeline] 预热完成` 后即可使用。
@@ -180,7 +181,7 @@ data: {"done":true,"result":{...}}
 POST /ask {"question": "..."}
         │
         ▼
-[_handle_meta_question]  "你是谁" → 直接回复
+[_handle_meta_question]  "你是谁"/打招呼/晚安 → 直接回复（v0.7.0 扩展 casual chat）
         │
         ▼
 TwoLayerRiskClassifier   L1关键词(高召回) → L2 BGE-M3 语义消歧
@@ -207,7 +208,7 @@ _filter → _dedup         score阈值  → max 3/source, 12 total
 LLM (Qwen3-8B)           /api/generate 原生端点，/no_think 指令
         │  timeout→DeepSeek 回退，空响应→temperature 0.3 重试
         ▼
-[fact_check]             NER实体校验 → 删除无出处句 / hedge / 降级T3
+[fact_check]             NER实体校验 + COUNT_RE虚构数量检测 → 删除无出处句 / hedge / 降级T3
         │
         ▼
 _format_response         600字截断 + 高风险模板
@@ -222,10 +223,12 @@ _format_response         600字截断 + 高风险模板
 
 | 模型 | 大小 | 用途 | 线程安全 |
 |------|------|------|---------|
-| Qwen3-8B (Q4_K_M) | 5.2 GB | LLM 生成（Ollama `/api/generate`） | N/A（独立进程） |
+| Qwen3-8B (no-think v2) | 5.2 GB | LLM 生成（Ollama `/api/generate`） | N/A（独立进程） |
+| Qwen3-8B LoRA v3 | 5.0 GB | 微调 LLM（NJU QA 对，Q4_K_M GGUF） | N/A（独立进程） |
 | BGE-M3 | 2.2 GB | 文本向量化（1024 维） | 否 — GPU RLock |
 | BGE-Reranker-v2-m3 | 1.0 GB | 检索精排 | 否 — GPU Lock |
-| DeepSeek-Chat | API | 回退 LLM + 评测 judge | N/A |
+| BGE-Reranker-NJU | 1.0 GB | NJU 领域微调重排器 | 否 — GPU Lock |
+| DeepSeek-Chat | API | 回退 LLM + 高风险路由 + 评测 judge | N/A |
 
 总显存占用：~8-10 GB（Ollama + BGE 模型），16GB 余量充足。
 
@@ -321,14 +324,14 @@ RERANK_TOP_K=12
 RERANKER_DEVICE=auto               # auto | cuda | cpu
 
 # ── 置信度分级 ──
-CONFIDENCE_TIER1_TOP1=0.70
+CONFIDENCE_TIER1_TOP1=0.65
 CONFIDENCE_TIER1_TOP3=0.55
 CONFIDENCE_TIER3_TOP1=0.25
 
 # ── Prompt 预算 ──
-PROMPT_TOKEN_BUDGET=4096
-MAX_CHUNK_TOKENS=320
-MAX_CHUNKS_IN_PROMPT=4
+PROMPT_TOKEN_BUDGET=6144
+MAX_CHUNK_TOKENS=400
+MAX_CHUNKS_IN_PROMPT=8
 
 # ── Embedding ──
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
@@ -354,7 +357,7 @@ QQ_BOT_API_BASE_URL=http://127.0.0.1:8000
 | `app/retriever.py` | HybridRetriever — BM25 + BGE-M3 向量 + 优先级加权 |
 | `app/reranker.py` | CrossEncoderReranker — BGE-Reranker-v2-m3 精排 |
 | `app/llm_client.py` | LLM 客户端 — `/api/generate` 原生端点 + 回退逻辑 |
-| `app/fact_check.py` | NER 事实核验 — 数字/日期/URL/金额 比对 + 三级惩罚 |
+| `app/fact_check.py` | NER 事实核验 — 数字/日期/URL/金额 比对 + COUNT_RE 虚构数量检测 + 三级惩罚 |
 | `app/policy.py` | TwoLayerRiskClassifier + classify_topic + 响应模板 |
 | `app/cache.py` | QACache (LRU) + PersistentQueryCache (chunk 签名) |
 | `app/query_rewriter.py` | 口语查询改写（should_rewrite 守卫） |

@@ -6,12 +6,129 @@ Contains zero RAG, retrieval, or risk-judgment logic.
 """
 
 import re
+import time
+from collections import deque
 
 from app.config import get_settings
+
+# ── In-group feedback ──────────────────────────────────────────────
+# Key: (group_id, user_id) → {question, request_id, ts}
+_pending_requests: dict[tuple[int | str, int | str], dict] = {}
+_PENDING_TTL = 300  # 5 minutes
+
+FEEDBACK_SUFFIX = "\n━━━━━━\n👍 有用  |  👎 有问题"
+
+# ── Conversation memory (multi-turn) ───────────────────────────────
+# Key: (group_id, user_id) → deque of {question, answer, ts}
+_conversations: dict[tuple[int | str, int | str], deque] = {}
+_CONV_MAX_TURNS = 3
+_CONV_TTL = 300  # 5 minutes
 
 
 def _settings():
     return get_settings()
+
+
+def _cleanup_expired():
+    """Remove pending requests older than _PENDING_TTL."""
+    now = time.time()
+    expired = [k for k, v in _pending_requests.items() if now - v["ts"] > _PENDING_TTL]
+    for k in expired:
+        _pending_requests.pop(k, None)
+
+
+def store_pending(group_id: int | str, user_id: int | str,
+                  question: str, request_id: str):
+    """Remember that a user just asked a question, so follow-up emoji can be
+    interpreted as feedback."""
+    _cleanup_expired()
+    _pending_requests[(str(group_id), str(user_id))] = {
+        "question": question,
+        "request_id": request_id,
+        "ts": time.time(),
+    }
+
+
+def get_history(group_id: int | str, user_id: int | str) -> list[dict] | None:
+    """Return recent Q&A pairs for prompt injection, or None if expired/empty."""
+    _cleanup_conversations()
+    key = (str(group_id), str(user_id))
+    turns = _conversations.get(key)
+    if not turns:
+        return None
+    return list(turns)
+
+
+def add_to_history(group_id: int | str, user_id: int | str,
+                   question: str, answer: str):
+    """Append a Q&A turn to the user's conversation memory."""
+    _cleanup_conversations()
+    key = (str(group_id), str(user_id))
+    if key not in _conversations:
+        _conversations[key] = deque(maxlen=_CONV_MAX_TURNS)
+    _conversations[key].append({
+        "question": question,
+        "answer": answer,
+        "ts": time.time(),
+    })
+
+
+def _cleanup_conversations():
+    """Remove expired conversation entries."""
+    now = time.time()
+    expired = []
+    for k, turns in _conversations.items():
+        # Keep only turns within TTL
+        while turns and now - turns[0]["ts"] > _CONV_TTL:
+            turns.popleft()
+        if not turns:
+            expired.append(k)
+    for k in expired:
+        _conversations.pop(k, None)
+
+
+# ── Feedback detection ─────────────────────────────────────────────
+
+_FEEDBACK_UP = {
+    "👍", "好", "赞", "有用", "对的", "不错", "可以", "棒", "厉害",
+    "靠谱", "行的", "好评", "好用", "好用的", "对", "谢谢", "牛",
+    "yes", "y", "1",
+}
+_FEEDBACK_DOWN = {
+    "👎", "差", "踩", "没用", "错的", "不对", "错误", "有问题",
+    "不行", "不准", "胡说", "瞎说", "假的", "烂", "不好",
+    "no", "n", "2",
+}
+_RE_CQ = re.compile(r"\[CQ:\w+,.*?\]")
+
+
+def check_feedback(text: str, group_id: int | str,
+                   user_id: int | str) -> dict | None:
+    """If *text* is a pure-feedback message from a user with a pending
+    question, return {rating, question, request_id}.  Otherwise None."""
+    stripped = _RE_CQ.sub("", text).strip()
+    if not stripped:
+        return None
+
+    rating = None
+    if stripped in _FEEDBACK_UP:
+        rating = "up"
+    elif stripped in _FEEDBACK_DOWN:
+        rating = "down"
+    else:
+        return None
+
+    key = (str(group_id), str(user_id))
+    pending = _pending_requests.pop(key, None)
+    if pending is None:
+        return None  # user reacted but has no recent question
+
+    _cleanup_expired()
+    return {
+        "rating": rating,
+        "question": pending["question"],
+        "request_id": pending["request_id"],
+    }
 
 
 def ask_backend(question: str) -> dict | None:
@@ -39,8 +156,15 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
-def format_reply_from_data(question: str, data: dict | None) -> str:
-    """Same as format_reply but accepts pre-fetched pipeline data (avoids double call)."""
+def format_reply_from_data(question: str, data: dict | None,
+                           group_id: int | str = "",
+                           user_id: int | str = "",
+                           request_id: str = "") -> str:
+    """Same as format_reply but accepts pre-fetched pipeline data (avoids double call).
+
+    When *group_id* + *user_id* + *request_id* are provided, a pending
+    entry is stored so follow-up 👍/👎 messages can be matched as feedback.
+    """
     s = _settings()
 
     if data is None:
@@ -70,10 +194,17 @@ def format_reply_from_data(question: str, data: dict | None) -> str:
         )
         lines.append("")
 
+    # Feedback prompt
+    lines.append(FEEDBACK_SUFFIX)
+
     reply = "\n".join(lines).strip()
 
     if len(reply) > s.qq_bot_max_reply_length:
         reply = reply[:s.qq_bot_max_reply_length] + "..."
+
+    # Register pending so follow-up emoji maps to feedback
+    if group_id and user_id and request_id:
+        store_pending(group_id, user_id, question, request_id)
 
     return reply
 

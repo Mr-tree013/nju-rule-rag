@@ -77,6 +77,32 @@ def _log_request(request_id: str, question: str, result: dict):
         pass
 
 
+def _log_feedback_entry(rating: str, question: str, answer: str = "",
+                        request_id: str = "", comment: str = "",
+                        sources: str = "", tier: str = "",
+                        fact_check: dict | None = None):
+    """Write one feedback entry. Shared by /feedback endpoint and QQ bot."""
+    log_dir = Path("data/feedback")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "question": question,
+        "answer": answer[:500],
+        "rating": rating,
+        "comment": comment,
+        "sources": sources,
+        "request_id": request_id,
+        "tier": tier,
+        "fact_check": fact_check or {},
+    }
+    fname = time.strftime("%Y-%m-%d") + ".jsonl"
+    try:
+        with open(log_dir / fname, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 @app.post("/ask")
 def ask(req: AskRequest):
     if not req.question or not req.question.strip():
@@ -244,12 +270,9 @@ def feedback(req: FeedbackRequest):
     Each down-vote with sources can be converted to a training pair:
       query=question, positive=gold_source (from manual label), negative=retrieved
     """
-    today = time.strftime("%Y-%m-%d")
-    log_dir = Path("data/feedback")
-    log_dir.mkdir(parents=True, exist_ok=True)
-
     # If request_id provided, try to load the original request debug info
-    request_debug = None
+    tier = ""
+    fact_check = None
     if req.request_id:
         req_log_dir = Path("data/requests")
         fname = time.strftime("%Y%m") + ".jsonl"
@@ -261,30 +284,24 @@ def feedback(req: FeedbackRequest):
                         try:
                             r = json.loads(line)
                             if r.get("request_id") == req.request_id:
-                                request_debug = r
+                                tier = r.get("tier", "")
+                                fact_check = r.get("fact_check", {})
                                 break
                         except json.JSONDecodeError:
                             continue
             except Exception:
                 pass
 
-    entry = {
-        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "question": req.question,
-        "answer": req.answer[:500],
-        "rating": req.rating,
-        "comment": req.comment,
-        "sources": req.sources,
-        "request_id": req.request_id,
-        "tier": request_debug.get("tier", "") if request_debug else "",
-        "fact_check": request_debug.get("fact_check", {}) if request_debug else {},
-    }
-    log_path = log_dir / f"{today}.jsonl"
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    _log_feedback_entry(
+        rating=req.rating,
+        question=req.question,
+        answer=req.answer,
+        request_id=req.request_id,
+        comment=req.comment,
+        sources=req.sources,
+        tier=tier,
+        fact_check=fact_check,
+    )
     logger.info("feedback rating=%s question=%.50s", req.rating, req.question)
     return {"status": "ok", "message": "感谢反馈！"}
 
@@ -419,6 +436,20 @@ def qq_webhook(data: dict):
         return {"reply": ""}
 
     raw = data.get("raw_message", "")
+    group_id = data.get("group_id", "")
+    user_id = data.get("user_id", "")
+
+    # ── Feedback detection (before @mention check) ────────────────
+    from app.qq_bot import check_feedback
+    fb = check_feedback(raw, group_id, user_id)
+    if fb:
+        _log_feedback_entry(
+            rating=fb["rating"],
+            question=fb["question"],
+            request_id=fb["request_id"],
+        )
+        logger.info("qq_webhook feedback rating=%s user=%s", fb["rating"], user_id)
+        return {"reply": "感谢反馈！"}
 
     # Only respond when @mentioned
     self_id = str(create_settings().qq_bot_self_id)
@@ -431,11 +462,19 @@ def qq_webhook(data: dict):
         return {"reply": ""}
 
     logger.info("qq_webhook processing text=%.200s", text)
-    from app.qq_bot import format_reply_from_data
-    data = answer_question(text)
+    from app.qq_bot import format_reply_from_data, get_history, add_to_history
+
+    # Inject conversation history so follow-up questions get context
+    conv_history = get_history(group_id, user_id)
+    result = answer_question(text, conversation_history=conv_history)
     request_id = str(uuid.uuid4())[:8]
-    _log_request(request_id, text, data)
-    reply = format_reply_from_data(text, data)
+    _log_request(request_id, text, result)
+    reply = format_reply_from_data(text, result,
+                                   group_id=group_id, user_id=user_id,
+                                   request_id=request_id)
+    if reply:
+        add_to_history(group_id, user_id, text,
+                       result.get("answer", "") if result else "")
     if not reply:
         return {"reply": ""}
     logger.info("qq_webhook reply=%.100s elapsed=%.1fs", reply, time.time() - t0)

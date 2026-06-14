@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NJU Rule RAG — a retrieval-augmented generation bot for Nanjing University undergraduate academic rules. Students ask questions in natural language; the system retrieves relevant regulatory documents and generates answers with source citations and risk-level classification.
 
-**Current status**: v0.6.4. 147 source documents → 3286 chunks. 145 eval questions. Avg latency **1.76s** (switched to Ollama native /api/generate — bypasses OpenAI API overhead). Fact-check pipeline (NER entity verification), persistent query cache (chunk-signature keys), confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost), multi-judge eval (DeepSeek + Qwen3). Faithfulness **3.30/5** (Qwen3-8B judge), Relevance **3.80/5** (human cal). Known issue: context precision 0.12 limits further faithfulness gains. Full latency optimization history: `docs/latency_final_report.md`.
+**Current status**: v0.7.0. 220 source documents → 3441 chunks. 145 eval questions. Avg latency **1.76s** (switched to Ollama native /api/generate — bypasses OpenAI API overhead). Bot identity: **南鉴Bot** (renamed from 南大学长 in v0.7.0). Fact-check pipeline (NER entity verification + COUNT_RE fabricated-number detection), persistent query cache (chunk-signature keys), confidence tiering (3 tiers, Tier 3 skips LLM), topic routing (soft source boost), multi-judge eval (DeepSeek + Qwen3). Expanded meta-question handler covers casual chat (greetings/thanks/晚安) and emotional redirects. Faithfulness **3.30/5** (Qwen3-8B judge), Relevance **3.80/5** (human cal). Known issue: context precision 0.12 limits further faithfulness gains. Full latency optimization history: `docs/latency_final_report.md`.
 
 ## Commands
 
@@ -17,6 +17,9 @@ source .venv/bin/activate
 ./scripts/start_server.sh
 ./scripts/start_server.sh --reload  # dev mode with auto-reload
 
+# Background daemon (tmux session, auto-starts Ollama if needed)
+./scripts/start_daemon.sh
+
 # Preflight check (diagnose startup issues without starting server)
 python scripts/preflight_check.py
 
@@ -24,6 +27,7 @@ python scripts/preflight_check.py
 pytest                                    # all tests
 pytest tests/test_pipeline.py -x          # pipeline tests, stop on first failure
 pytest tests/test_retriever.py            # retriever unit tests
+pytest tests/test_answer_policy.py        # risk classifier + response templates
 pytest tests/test_config.py               # config tests
 pytest tests/test_main.py                 # API endpoint tests (needs server)
 
@@ -70,7 +74,8 @@ curl -N -X POST http://localhost:8000/ask/stream -H "Content-Type: application/j
 POST /ask {"question": "..."}
         │
         ▼
-[_handle_meta_question]  "你是谁"/"你能干什么" → 直接回复（不走检索）
+[_handle_meta_question]  "你是谁"/"你能干什么"/打招呼/晚安 → 直接回复（不走检索）
+        │               v0.7.0 扩展: 覆盖 casual chat + emotional redirect
         │
         ▼
 [QueryRewriter]        口语化规范化（should_rewrite()守卫，默认跳过正式问题）
@@ -104,7 +109,7 @@ _filter → _dedup       score阈值过滤 → max 3/source, 12 total
 [query_cache]          持久化缓存（chunk-ID签名键）—— 命中直接返回，跳过LLM
         │
         ▼
-_build_prompt          token预算裁剪 (budget=4096, max 6 chunks, 320/chunk)
+_build_prompt          token预算裁剪 (budget=6144, max 8 chunks, 400/chunk)
         │               + Tier 2自动注入hedge指令
         │               + 高风险题自动追加短系统补丁
         │
@@ -115,7 +120,8 @@ LLM (Qwen3-8B)         temp=0.15, num_ctx=8192, num_predict=250, stop sequences
         │  (HTTP I/O — 不加锁，可并发)
         │
         ▼
-[fact_check]           NER实体校验（数字/日期/URL/金额）→ 删除无出处句或hedge
+[fact_check]           NER实体校验（数字/日期/URL/金额）+ COUNT_RE虚构数量检测
+        │               → 删除无出处句或hedge
         │               3级惩罚: 硬删除 | hedge | Tier降级
         │               3+失败或硬失败 → 降级到 Tier 3
         │               (ENABLE_FACT_CHECK守卫, 默认开启)
@@ -145,7 +151,7 @@ _maybe_free_gpu_cache  N次请求后empty_cache，空闲<1.5GB时强制释放
 | `app/reranker.py` | `CrossEncoderReranker` and `LLMReranker` — BGE-Reranker-v2-m3 with score fusion (`0.4×raw + 0.6×sigmoid(logit)`) or LLM-based pointwise ranking; GPU-serialized via `threading.Lock` |
 | `app/policy.py` | `TwoLayerRiskClassifier` — L1 keywords (high recall) + L2 BGE-M3 centroid disambiguation; also `classify_topic()` for topic routing; shares GPU lock with retriever |
 | `app/llm_client.py` | OpenAI-compatible client with streaming, 3-retry backoff, 20s timeout → DeepSeek fallback |
-| `app/fact_check.py` | NER entity verification — extracts numbers/dates/URLs/amounts from output, checks against sources; 3-tier penalty (hard-remove sentence / hedge "资料里没写" / downgrade to Tier 3); takes `confidence_tier` param |
+| `app/fact_check.py` | NER entity verification — extracts numbers/dates/URLs/amounts from output, checks against sources; v0.7.0 added COUNT_RE to detect fabricated "N个/N大" claims; 3-tier penalty (hard-remove sentence / hedge "资料里没写" / downgrade to Tier 3); takes `confidence_tier` param |
 | `app/query_rewriter.py` | Colloquial→formal query normalization; `should_rewrite()` guard, default off |
 | `app/cache.py` | Two-layer cache: `QACache` (LRU in-memory, 200 entries, 1h TTL) + `QueryCache` (persistent with chunk-ID signature keys — invalidated when index is rebuilt) |
 | `app/qq_bot.py` | QQ Bot adapter (NapCat/OneBot v11 HTTP callback) |
@@ -169,9 +175,9 @@ Total GPU memory: ~8-10 GB with base model, ~8 GB with v3 Q4_K_M (fits 16GB with
 
 ## Data pipeline
 
-1. `data/sources.csv` — 147 source documents (priority 1-5, department, scope).
+1. `data/sources.csv` — 220 source documents (priority 1-5, department, scope). v0.7.0 added 75 new sources covering campus services, library, hospital, VPN, eHall curriculum plans.
 2. Raw documents: `data/raw/` (HTML/PDF/DOC) → `scripts/parse_to_markdown.py` → `data/processed/*.md`. New documents can also be staged in `data/staging/` and reviewed via `review_staging.py` before adding.
-3. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3286 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
+3. `scripts/build_chunks.py` — `data/processed/*.md` → `data/chunks/chunks.jsonl` (3441 chunks). Splits by article headings (including `**第X条**` bold markdown). 0 too-long chunks enforced via `_split_by_fixed_size` fallback.
 4. `scripts/build_index.py` — BM25 (jieba) + Chroma (BGE-M3, 1024-dim). GPU auto-detection. `batch_size=8` for 16GB VRAM.
 
 To add a document: `.md` → `data/processed/`, add row to `data/sources.csv`, then `build_chunks.py && build_index.py && validate_*`.
@@ -243,7 +249,7 @@ bash scripts/start_vllm.sh nju-lora    # vLLM on port 8001 (uses nju-v3 adapter)
 - `coverage_gap_analysis.py` — per-topic metrics ranked by ROI priority for document acquisition.
 - `data/eval/faithfulness_report.md` — detailed analysis of low-faithfulness answers, 5 hallucination patterns documented.
 
-### Current eval metrics (v0.6.4)
+### Current eval metrics (v0.7.0)
 
 | Metric | Value |
 |--------|-------|
@@ -294,15 +300,15 @@ RERANKER_TYPE=cross_encoder  # cross_encoder | llm
 LLM_RERANKER_BATCH_SIZE=15
 LLM_RERANKER_FALLBACK_TO_CE=true  # fall back to cross-encoder if LLM reranker fails
 
-# Confidence tiering (v0.6.3 — data-driven thresholds)
-CONFIDENCE_TIER1_TOP1=0.70   # Tier 1: answer confidently
+# Confidence tiering (v0.7.0 — lowered tier1_top1 for better recall)
+CONFIDENCE_TIER1_TOP1=0.65   # Tier 1: answer confidently
 CONFIDENCE_TIER1_TOP3=0.55
 CONFIDENCE_TIER3_TOP1=0.25   # Tier 3: skip LLM, direct referral
 
-# Prompt budget (v0.5.1 — token-aware context trimming)
-PROMPT_TOKEN_BUDGET=4096     # total prompt token budget
-MAX_CHUNK_TOKENS=320         # per-chunk token cap (head+tail preserved)
-MAX_CHUNKS_IN_PROMPT=6       # max chunks fed to LLM (was 12)
+# Prompt budget (v0.7.0 — expanded context window)
+PROMPT_TOKEN_BUDGET=6144     # total prompt token budget
+MAX_CHUNK_TOKENS=400         # per-chunk token cap (head+tail preserved)
+MAX_CHUNKS_IN_PROMPT=8       # max chunks fed to LLM (was 6 in v0.6.x)
 
 # LLM timeout & circuit breaker (v0.5.1)
 LLM_REQUEST_TIMEOUT=20       # HTTP timeout for LLM requests (was 120)
@@ -317,7 +323,7 @@ RERANKER_DEVICE=auto             # auto | cuda | cpu (CPU mode saves ~1GB VRAM)
 LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
 ```
 
-## Known issues (v0.6.4)
+## Known issues (v0.7.0)
 
 **Context Precision@10 = 0.12** — the retrieval pipeline is noisy. 20 questions have recall@5 < 0.5. Some topics (社团/考研/体育课项目/校历) have only 1-2 source documents. Route A (retrieval improvement) plan exists but not yet executed. This is the primary bottleneck for further faithfulness gains.
 
@@ -413,4 +419,4 @@ The Docker image downloads a CPU embedding model at build time. GPU is not avail
 - **Ollama**: Runs natively in WSL, exposes OpenAI-compatible API at `localhost:11434/v1`.
 - Scripts that import `app.*` need `PYTHONPATH=.` prefix.
 - Never commit `.env` (it's in `.gitignore`).
-- `docs/` directory contains reference documents: `dev_contract.md` (chunk/API format contract), `deployment_guide.md`, `requirement.md`, `risk_policy.md`, etc. The README is up-to-date for v0.6.4 deployment; this CLAUDE.md reflects the current v0.6.4 state.
+- `docs/` directory contains reference documents: `dev_contract.md` (chunk/API format contract), `deployment_guide.md`, `requirement.md`, `risk_policy.md`, etc. The README may lag behind; this CLAUDE.md reflects the current v0.7.0 state.

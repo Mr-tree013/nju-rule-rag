@@ -57,8 +57,14 @@ class RAGPipeline:
 
     # ── Main entry point ────────────────────────────────────────
 
-    def answer(self, question: str) -> dict[str, Any]:
-        """Run the full pipeline and return the ``/ask`` response dict."""
+    def answer(self, question: str,
+               conversation_history: list[dict] | None = None) -> dict[str, Any]:
+        """Run the full pipeline and return the ``/ask`` response dict.
+
+        *conversation_history* is an optional list of {question, answer}
+        from previous turns, injected into the prompt so the LLM can
+        resolve anaphora ("那", "这个") across turns.
+        """
         t_start = time.time()
         self._llm_used: str | None = None
         timing: dict[str, float] = {}
@@ -156,6 +162,7 @@ class RAGPipeline:
         messages, prompt_tokens, prompt_chunks = self._build_prompt(
             question, top_chunks, classification.level, classification.is_process,
             confidence_tier=confidence_tier,
+            conversation_history=conversation_history,
         )
 
         # 9. Call LLM (route high-risk to DeepSeek if enabled)
@@ -533,8 +540,12 @@ class RAGPipeline:
         self, question: str, chunks: list[dict], level: RiskLevel,
         is_process: bool = False,
         confidence_tier: str = "1",
+        conversation_history: list[dict] | None = None,
     ) -> tuple[list[dict[str, str]], int, int]:
         """Build the LLM prompt, applying token budget to trim chunks.
+
+        *conversation_history* is injected between context and question
+        so the LLM can resolve cross-turn anaphora.
 
         Returns (messages, estimated_prompt_tokens, chunk_count_used).
         """
@@ -575,9 +586,24 @@ class RAGPipeline:
         if level == RiskLevel.HIGH:
             system += "\n\n本题为高风险，只给一般规定与办事入口，不给个人结论。"
 
+        # Build user message — inject conversation history when available
+        user_content = (
+            f"以下是你可以使用的唯一信息来源，不要使用你自己的知识：\n\n"
+            f"【参考资料】\n{context}"
+        )
+        if conversation_history:
+            history_lines = []
+            for h in conversation_history[-2:]:  # at most 2 recent turns
+                history_lines.append(
+                    f"用户: {h['question']}\n"
+                    f"Bot: {h['answer'][:200]}"
+                )
+            user_content += "\n\n【对话上下文】\n" + "\n---\n".join(history_lines)
+        user_content += f"\n\n【问题】\n{question}"
+
         messages: list[dict[str, str]] = [
             {"role": "system", "content": system},
-            {"role": "user", "content": f"以下是你可以使用的唯一信息来源，不要使用你自己的知识：\n\n【参考资料】\n{context}\n\n【问题】\n{question}"},
+            {"role": "user", "content": user_content},
         ]
         if is_process:
             messages.append(
@@ -1116,6 +1142,7 @@ def preload_pipeline() -> None:
         pass
 
 
-def answer_question(question: str) -> dict[str, Any]:
+def answer_question(question: str,
+                    conversation_history: list[dict] | None = None) -> dict[str, Any]:
     """Backward-compatible entry point.  Prefer ``RAGPipeline.answer()``."""
-    return _get_pipeline().answer(question)
+    return _get_pipeline().answer(question, conversation_history=conversation_history)
